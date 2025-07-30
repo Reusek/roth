@@ -1,1 +1,6 @@
 /target
+
+# Generated files
+generated
+generated.c
+roth_history.txt

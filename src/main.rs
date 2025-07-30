@@ -1,285 +1,264 @@
-use std::collections::HashMap;
-use std::io::{self, BufRead, Write};
+mod types;
+mod lexer;
+mod parser;
+mod analyzer;
+mod codegen;
+mod interpreter;
+mod highlighter;
 
-#[derive(Debug, Clone)]
-enum ForthWord {
-    Native(fn(&mut ForthInterpreter) -> Result<(), String>),
-    UserDefined(Vec<String>),
+
+use crate::interpreter::ForthInterpreter;
+use crate::codegen::Backend;
+use crate::lexer::Lexer;
+use crate::parser::Parser;
+use crate::highlighter::SyntaxHighlighter;
+use clap::Parser as ClapParser;
+use rustyline::error::ReadlineError;
+use rustyline::{Editor, Result as RustylineResult};
+use rustyline::completion::{Completer, Pair};
+use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
+use rustyline::validate::Validator;
+use rustyline::{CompletionType, Config, Context};
+use rustyline::Helper;
+
+#[derive(ClapParser, Debug)]
+#[command(name = "roth")]
+#[command(about = "Enhanced Forth Interpreter in Rust")]
+struct Args {
+    #[arg(long, help = "Disable syntax highlighting")]
+    no_color: bool,
 }
 
-struct ForthInterpreter {
-    stack: Vec<i32>,
-    dictionary: HashMap<String, ForthWord>,
-    is_compiling: bool,
-    current_definition: Vec<String>,
-    current_word: Option<String>,
+struct ForthCompleter {
+    interpreter: *const ForthInterpreter,
 }
 
-impl ForthInterpreter {
-    fn new() -> Self {
-        let mut interpreter = ForthInterpreter {
-            stack: Vec::new(),
-            dictionary: HashMap::new(),
-            is_compiling: false,
-            current_definition: Vec::new(),
-            current_word: None,
+impl ForthCompleter {
+    fn new(interpreter: *const ForthInterpreter) -> Self {
+        ForthCompleter { interpreter }
+    }
+}
+
+impl Helper for ForthCompleter {}
+
+impl Completer for ForthCompleter {
+    type Candidate = Pair;
+
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _ctx: &Context<'_>,
+    ) -> RustylineResult<(usize, Vec<Pair>)> {
+        // Find the word being completed
+        let words: Vec<&str> = line[..pos].split_whitespace().collect();
+        let current_word = if line[..pos].ends_with(' ') {
+            ""
+        } else {
+            words.last().map_or("", |v| v)
         };
 
-        // Define native words
-        interpreter.define_native_words();
-        interpreter
-    }
+        let start = pos - current_word.len();
+        
+        // Get completions from the interpreter
+        let completions = unsafe {
+            (*self.interpreter).get_word_completions(current_word)
+        };
 
-    fn define_native_words(&mut self) {
-        // Arithmetic operations
-        self.dictionary.insert(
-            "+".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.len() < 2 {
-                    return Err("Stack underflow".to_string());
-                }
-                let b = interp.stack.pop().unwrap();
-                let a = interp.stack.pop().unwrap();
-                interp.stack.push(a + b);
-                Ok(())
-            }),
-        );
+        let candidates: Vec<Pair> = completions
+            .into_iter()
+            .map(|completion| Pair {
+                display: completion.clone(),
+                replacement: completion,
+            })
+            .collect();
 
-        self.dictionary.insert(
-            "-".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.len() < 2 {
-                    return Err("Stack underflow".to_string());
-                }
-                let b = interp.stack.pop().unwrap();
-                let a = interp.stack.pop().unwrap();
-                interp.stack.push(a - b);
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            "*".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.len() < 2 {
-                    return Err("Stack underflow".to_string());
-                }
-                let b = interp.stack.pop().unwrap();
-                let a = interp.stack.pop().unwrap();
-                interp.stack.push(a * b);
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            "/".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.len() < 2 {
-                    return Err("Stack underflow".to_string());
-                }
-                let b = interp.stack.pop().unwrap();
-                if b == 0 {
-                    return Err("Division by zero".to_string());
-                }
-                let a = interp.stack.pop().unwrap();
-                interp.stack.push(a / b);
-                Ok(())
-            }),
-        );
-
-        // Stack manipulation
-        self.dictionary.insert(
-            "DUP".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.is_empty() {
-                    return Err("Stack underflow".to_string());
-                }
-                let a = *interp.stack.last().unwrap();
-                interp.stack.push(a);
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            "DROP".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.is_empty() {
-                    return Err("Stack underflow".to_string());
-                }
-                interp.stack.pop();
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            "SWAP".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.len() < 2 {
-                    return Err("Stack underflow".to_string());
-                }
-                let len = interp.stack.len();
-                interp.stack.swap(len - 1, len - 2);
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            "OVER".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.len() < 2 {
-                    return Err("Stack underflow".to_string());
-                }
-                let len = interp.stack.len();
-                let value = interp.stack[len - 2];
-                interp.stack.push(value);
-                Ok(())
-            }),
-        );
-
-        // Word definition
-        self.dictionary.insert(
-            ":".to_string(),
-            ForthWord::Native(|interp| {
-                interp.is_compiling = true;
-                interp.current_definition.clear();
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            ";".to_string(),
-            ForthWord::Native(|interp| {
-                if !interp.is_compiling {
-                    return Err("Not in compilation mode".to_string());
-                }
-
-                if let Some(word_name) = &interp.current_word {
-                    let definition = interp.current_definition.clone();
-                    interp
-                        .dictionary
-                        .insert(word_name.clone(), ForthWord::UserDefined(definition));
-                    interp.is_compiling = false;
-                    interp.current_word = None;
-                } else {
-                    return Err("No word name provided".to_string());
-                }
-
-                Ok(())
-            }),
-        );
-
-        // Output
-        self.dictionary.insert(
-            ".".to_string(),
-            ForthWord::Native(|interp| {
-                if interp.stack.is_empty() {
-                    return Err("Stack underflow".to_string());
-                }
-                let value = interp.stack.pop().unwrap();
-                print!("{} ", value);
-                io::stdout().flush().unwrap();
-                Ok(())
-            }),
-        );
-
-        self.dictionary.insert(
-            ".S".to_string(),
-            ForthWord::Native(|interp| {
-                print!("<{}> ", interp.stack.len());
-                for value in &interp.stack {
-                    print!("{} ", value);
-                }
-                println!();
-                Ok(())
-            }),
-        );
-
-        // Control flow
-        self.dictionary.insert(
-            "CR".to_string(),
-            ForthWord::Native(|_| {
-                println!();
-                Ok(())
-            }),
-        );
-    }
-
-    fn interpret(&mut self, input: &str) -> Result<(), String> {
-        let tokens: Vec<&str> = input.split_whitespace().collect();
-
-        for token in tokens {
-            let token_upper = token.to_uppercase();
-
-            // Handle word definition
-            if self.is_compiling {
-                if token == ":" {
-                    return Err("Cannot nest word definitions".to_string());
-                } else if token == ";" {
-                    if let Err(e) = self.execute_word(";") {
-                        return Err(e);
-                    }
-                } else if self.current_word.is_none() {
-                    self.current_word = Some(token_upper.clone());
-                } else {
-                    self.current_definition.push(token_upper.clone());
-                }
-                continue;
-            }
-
-            // Try to parse as a number
-            if let Ok(number) = token.parse::<i32>() {
-                self.stack.push(number);
-                continue;
-            }
-
-            // Execute word
-            if let Err(e) = self.execute_word(&token_upper) {
-                return Err(e);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn execute_word(&mut self, word: &str) -> Result<(), String> {
-        if let Some(forth_word) = self.dictionary.get(word).cloned() {
-            match forth_word {
-                ForthWord::Native(func) => func(self),
-                ForthWord::UserDefined(definition) => {
-                    for word in definition {
-                        self.execute_word(&word)?;
-                    }
-                    Ok(())
-                }
-            }
-        } else {
-            Err(format!("Unknown word: {}", word))
-        }
+        Ok((start, candidates))
     }
 }
 
-fn main() {
-    let mut interpreter = ForthInterpreter::new();
-    let stdin = io::stdin();
+impl Hinter for ForthCompleter {
+    type Hint = String;
 
-    println!("Forth Interpreter in Rust");
-    println!("Type 'bye' to exit");
+    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
+        None
+    }
+}
+
+impl Highlighter for ForthCompleter {}
+
+impl Validator for ForthCompleter {}
+
+fn main() {
+    let args = Args::parse();
+    let mut interpreter = ForthInterpreter::new();
+    let mut highlighter = if args.no_color {
+        None
+    } else {
+        match SyntaxHighlighter::new() {
+            Ok(h) => Some(h),
+            Err(e) => {
+                eprintln!("Failed to create highlighter: {}", e);
+                None
+            }
+        }
+    };
+
+    // Configure rustyline
+    let config = Config::builder()
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .build();
+    
+    let mut rl = Editor::with_config(config).unwrap();
+    let helper = ForthCompleter::new(&interpreter as *const ForthInterpreter);
+    rl.set_helper(Some(helper));
+
+    // Load history if it exists
+    let history_file = "roth_history.txt";
+    let _ = rl.load_history(history_file);
+
+    println!("Enhanced Forth Interpreter in Rust");
+    println!("Commands:");
+    println!("  'bye' - exit");
+    println!("  'gen <backend> <code>' - generate code (backends: rust, c)");
+    println!("  'compile <backend> <code>' - generate and save code with compile instructions");
+    println!("  'parse <code>' - show parse tree");
+    println!("  'backends' - list available backends");
+    println!("Use Tab for completion, Up/Down arrows for history");
 
     loop {
-        print!("> ");
-        io::stdout().flush().unwrap();
+        let readline = rl.readline("> ");
+        match readline {
+            Ok(line) => {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
 
-        let mut line = String::new();
-        stdin.lock().read_line(&mut line).unwrap();
+                rl.add_history_entry(line).unwrap();
 
-        let line = line.trim();
-        if line.eq_ignore_ascii_case("bye") {
-            break;
-        }
+                if line.eq_ignore_ascii_case("bye") {
+                    break;
+                }
 
-        match interpreter.interpret(line) {
-            Ok(_) => {}
-            Err(e) => println!("Error: {}", e),
+                if line == "backends" {
+                    println!("Available backends:");
+                    println!("  rust, rs - Rust code generation");
+                    println!("  c, gcc   - C code generation for GCC");
+                    continue;
+                }
+
+                if line.starts_with("gen ") {
+                    let parts: Vec<&str> = line[4..].splitn(2, ' ').collect();
+                    if parts.len() != 2 {
+                        println!("Usage: gen <backend> <code>");
+                        continue;
+                    }
+
+                    let backend_str = parts[0];
+                    let code = parts[1];
+
+                    match Backend::from_str(backend_str) {
+                        Some(backend) => {
+                            let is_c_backend = matches!(backend, Backend::C);
+                            match interpreter.generate_code(code, backend) {
+                                Ok(generated) => {
+                                     let output = if is_c_backend && highlighter.is_some() {
+                                         match highlighter.as_mut().unwrap().highlight_with_force(&generated, true) {
+                                             Ok(highlighted) => highlighted,
+                                             Err(_) => generated,
+                                         }
+                                     } else {
+                                         generated
+                                     };
+                                    println!("Generated code:\n{}", output);
+                                },
+                                Err(e) => println!("Generation error: {}", e),
+                            }
+                        },
+                        None => println!("Unknown backend: {}. Use 'backends' to see available options.", backend_str),
+                    }
+                    continue;
+                }
+
+                if line.starts_with("compile ") {
+                    let parts: Vec<&str> = line[8..].splitn(2, ' ').collect();
+                    if parts.len() != 2 {
+                        println!("Usage: compile <backend> <code>");
+                        continue;
+                    }
+
+                    let backend_str = parts[0];
+                    let code = parts[1];
+
+                    match Backend::from_str(backend_str) {
+                        Some(backend) => {
+                            let is_c_backend = matches!(backend, Backend::C);
+                            match interpreter.compile_code(code, backend, None) {
+                                Ok(result) => {
+                                    let output = if is_c_backend && highlighter.is_some() {
+                                        if let Some(code_start) = result.find("Generated code:\n") {
+                                            let prefix = &result[..code_start + 16];
+                                            let code_part = &result[code_start + 16..];
+                                             match highlighter.as_mut().unwrap().highlight_with_force(code_part, true) {
+                                                 Ok(highlighted) => format!("{}{}", prefix, highlighted),
+                                                 Err(_) => result,
+                                             }
+                                        } else {
+                                            result
+                                        }
+                                    } else {
+                                        result
+                                    };
+                                    println!("{}", output);
+                                },
+                                Err(e) => println!("Compilation error: {}", e),
+                            }
+                        },
+                        None => println!("Unknown backend: {}. Use 'backends' to see available options.", backend_str),
+                    }
+                    continue;
+                }
+
+                if line.starts_with("parse ") {
+                    let code = &line[6..];
+                    let mut lexer = Lexer::new(code.to_string());
+                    match lexer.tokenize() {
+                        Ok(tokens) => {
+                            println!("Tokens: {:?}", tokens);
+                            let mut parser = Parser::new(tokens);
+                            match parser.parse() {
+                                Ok(ast) => println!("AST: {:#?}", ast),
+                                Err(e) => println!("Parse error: {}", e),
+                            }
+                        },
+                        Err(e) => println!("Lexer error: {}", e),
+                    }
+                    continue;
+                }
+
+                match interpreter.interpret(line) {
+                    Ok(_) => {}
+                    Err(e) => println!("Error: {}", e),
+                }
+            },
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            },
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
     }
+
+    // Save history
+    let _ = rl.save_history(history_file);
 }
