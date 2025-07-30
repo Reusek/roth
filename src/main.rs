@@ -3,318 +3,130 @@ mod lexer;
 mod parser;
 mod analyzer;
 mod codegen;
-mod interpreter;
 mod highlighter;
 mod ir;
 mod ir_lowering;
 mod ir_optimizer;
 mod ir_codegen;
 
-
 use std::fs;
 use std::process;
-use crate::interpreter::ForthInterpreter;
 use crate::codegen::Backend;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::analyzer::SemanticAnalyzer;
+use crate::ir_lowering::IRLowering;
+use crate::ir_optimizer::IROptimizer;
+use crate::ir_codegen::IRRustGenerator;
 use crate::highlighter::SyntaxHighlighter;
 use clap::Parser as ClapParser;
-use rustyline::error::ReadlineError;
-use rustyline::{Editor, Result as RustylineResult};
-use rustyline::completion::{Completer, Pair};
-use rustyline::highlight::Highlighter;
-use rustyline::hint::Hinter;
-use rustyline::validate::Validator;
-use rustyline::{CompletionType, Config, Context};
-use rustyline::Helper;
 
 #[derive(ClapParser, Debug)]
 #[command(name = "roth")]
-#[command(about = "Enhanced Forth Interpreter in Rust")]
+#[command(about = "Enhanced Forth Compiler with IR Backend")]
 struct Args {
-    #[arg(help = "Forth file to execute")]
+    #[arg(help = "Forth file to compile")]
     file: Option<String>,
     
     #[arg(long, help = "Disable syntax highlighting")]
     no_color: bool,
     
-    #[arg(long, short, default_value = "0", help = "Debug level (0=off, 1=timing, 2=verbose, 3=show highlighted C code)")]
+    #[arg(long, short, default_value = "0", help = "Debug level (0=off, 1=timing, 2=verbose, 3=show highlighted code)")]
     debug: u8,
-}
-
-struct ForthCompleter {
-    interpreter: *const ForthInterpreter,
-}
-
-impl ForthCompleter {
-    fn new(interpreter: *const ForthInterpreter) -> Self {
-        ForthCompleter { interpreter }
-    }
-}
-
-impl Helper for ForthCompleter {}
-
-impl Completer for ForthCompleter {
-    type Candidate = Pair;
-
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &Context<'_>,
-    ) -> RustylineResult<(usize, Vec<Pair>)> {
-        // Find the word being completed
-        let words: Vec<&str> = line[..pos].split_whitespace().collect();
-        let current_word = if line[..pos].ends_with(' ') {
-            ""
-        } else {
-            words.last().map_or("", |v| v)
-        };
-
-        let start = pos - current_word.len();
-        
-        // Get completions from the interpreter
-        let completions = unsafe {
-            (*self.interpreter).get_word_completions(current_word)
-        };
-
-        let candidates: Vec<Pair> = completions
-            .into_iter()
-            .map(|completion| Pair {
-                display: completion.clone(),
-                replacement: completion,
-            })
-            .collect();
-
-        Ok((start, candidates))
-    }
-}
-
-impl Hinter for ForthCompleter {
-    type Hint = String;
-
-    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
-        None
-    }
-}
-
-impl Highlighter for ForthCompleter {}
-
-impl Validator for ForthCompleter {}
-
-fn execute_file(filename: &str, interpreter: &mut ForthInterpreter) {
-    let content = match fs::read_to_string(filename) {
-        Ok(content) => content,
-        Err(e) => {
-            eprintln!("Error reading file '{}': {}", filename, e);
-            process::exit(1);
-        }
-    };
-
-    for (line_num, line) in content.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        match interpreter.interpret(line) {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("Error on line {}: {}", line_num + 1, e);
-                process::exit(1);
-            }
-        }
-    }
-}
-
-fn run_repl(args: &Args, mut interpreter: ForthInterpreter) {
-    let mut highlighter = if args.no_color {
-        None
-    } else {
-        match SyntaxHighlighter::new() {
-            Ok(h) => Some(h),
-            Err(e) => {
-                eprintln!("Failed to create highlighter: {}", e);
-                None
-            }
-        }
-    };
-
-    let config = Config::builder()
-        .history_ignore_space(true)
-        .completion_type(CompletionType::List)
-        .build();
     
-    let mut rl = Editor::with_config(config).unwrap();
-    let helper = ForthCompleter::new(&interpreter as *const ForthInterpreter);
-    rl.set_helper(Some(helper));
+    #[arg(long, short, default_value = "rust-ir", help = "Backend to use (rust-ir, c-ir, ir-debug-rust, ir-debug-c)")]
+    backend: String,
+    
+    #[arg(long, short, help = "Output file name")]
+    output: Option<String>,
+}
 
-    let history_file = "roth_history.txt";
-    let _ = rl.load_history(history_file);
+fn compile_file(filename: &str, backend: Backend, output: Option<String>, debug: u8, no_color: bool) -> Result<(), String> {
+    let content = fs::read_to_string(filename)
+        .map_err(|e| format!("Error reading file '{}': {}", filename, e))?;
 
-    println!("Enhanced Forth Interpreter in Rust");
-    println!("Commands:");
-    println!("  'bye' - exit");
-    println!("  'gen <backend> <code>' - generate code (backends: rust, c)");
-    println!("  'compile <backend> <code>' - generate and save code with compile instructions");
-    println!("  'parse <code>' - show parse tree");
-    println!("  'backends' - list available backends");
-    println!("  'hybrid <code>' - execute with hybrid mode (generated + interpreter)");
-    println!("Use Tab for completion, Up/Down arrows for history");
+    let mut lexer = Lexer::new(content);
+    let tokens = lexer.tokenize()
+        .map_err(|e| format!("Lexer error: {}", e))?;
 
-    loop {
-        let readline = rl.readline("> ");
-        match readline {
-            Ok(line) => {
-                let line = line.trim();
-                if line.is_empty() {
-                    continue;
-                }
-
-                rl.add_history_entry(line).unwrap();
-
-                if line.eq_ignore_ascii_case("bye") {
-                    break;
-                }
-
-                if line == "backends" {
-                    println!("Available backends:");
-                    println!("  rust, rs - Rust code generation");
-                    println!("  c, gcc   - C code generation for GCC");
-                    continue;
-                }
-
-                if line.starts_with("gen ") {
-                    let parts: Vec<&str> = line[4..].splitn(2, ' ').collect();
-                    if parts.len() != 2 {
-                        println!("Usage: gen <backend> <code>");
-                        continue;
-                    }
-
-                    let backend_str = parts[0];
-                    let code = parts[1];
-
-                    match Backend::from_str(backend_str) {
-                        Some(backend) => {
-                            let is_c_backend = matches!(backend, Backend::C);
-                            match interpreter.generate_code(code, backend) {
-                                Ok(generated) => {
-                                     let output = if is_c_backend && highlighter.is_some() {
-                                         match highlighter.as_mut().unwrap().highlight_with_force(&generated, true) {
-                                             Ok(highlighted) => highlighted,
-                                             Err(_) => generated,
-                                         }
-                                     } else {
-                                         generated
-                                     };
-                                    println!("Generated code:\n{}", output);
-                                },
-                                Err(e) => println!("Generation error: {}", e),
-                            }
-                        },
-                        None => println!("Unknown backend: {}. Use 'backends' to see available options.", backend_str),
-                    }
-                    continue;
-                }
-
-                if line.starts_with("compile ") {
-                    let parts: Vec<&str> = line[8..].splitn(2, ' ').collect();
-                    if parts.len() != 2 {
-                        println!("Usage: compile <backend> <code>");
-                        continue;
-                    }
-
-                    let backend_str = parts[0];
-                    let code = parts[1];
-
-                    match Backend::from_str(backend_str) {
-                        Some(backend) => {
-                            let is_c_backend = matches!(backend, Backend::C);
-                            match interpreter.compile_code(code, backend, None) {
-                                Ok(result) => {
-                                    let output = if is_c_backend && highlighter.is_some() {
-                                        if let Some(code_start) = result.find("Generated code:\n") {
-                                            let prefix = &result[..code_start + 16];
-                                            let code_part = &result[code_start + 16..];
-                                             match highlighter.as_mut().unwrap().highlight_with_force(code_part, true) {
-                                                 Ok(highlighted) => format!("{}{}", prefix, highlighted),
-                                                 Err(_) => result,
-                                             }
-                                        } else {
-                                            result
-                                        }
-                                    } else {
-                                        result
-                                    };
-                                    println!("{}", output);
-                                },
-                                Err(e) => println!("Compilation error: {}", e),
-                            }
-                        },
-                        None => println!("Unknown backend: {}. Use 'backends' to see available options.", backend_str),
-                    }
-                    continue;
-                }
-
-                if line.starts_with("parse ") {
-                    let code = &line[6..];
-                    let mut lexer = Lexer::new(code.to_string());
-                    match lexer.tokenize() {
-                        Ok(tokens) => {
-                            println!("Tokens: {:?}", tokens);
-                            let mut parser = Parser::new(tokens);
-                            match parser.parse() {
-                                Ok(ast) => println!("AST: {:#?}", ast),
-                                Err(e) => println!("Parse error: {}", e),
-                            }
-                        },
-                        Err(e) => println!("Lexer error: {}", e),
-                    }
-                    continue;
-                }
-
-                if line.starts_with("hybrid ") {
-                    let code = &line[7..];
-                    match interpreter.execute_hybrid(code) {
-                        Ok(_) => {}
-                        Err(e) => println!("Hybrid execution error: {}", e),
-                    }
-                    continue;
-                }
-
-                match interpreter.interpret(line) {
-                    Ok(_) => {}
-                    Err(e) => println!("Error: {}", e),
-                }
-            },
-            Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
-            },
-            Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break;
-            },
-            Err(err) => {
-                println!("Error: {:?}", err);
-                break;
-            }
-        }
+    if debug >= 2 {
+        println!("Tokens: {:?}", tokens);
     }
 
-    let _ = rl.save_history(history_file);
+    let mut parser = Parser::new(tokens);
+    let ast = parser.parse()
+        .map_err(|e| format!("Parser error: {}", e))?;
+
+    if debug >= 2 {
+        println!("AST: {:#?}", ast);
+    }
+
+    let mut analyzer = SemanticAnalyzer::new();
+    analyzer.analyze(&ast)
+        .map_err(|e| format!("Semantic analysis error: {}", e))?;
+
+    let mut ir_lowering = IRLowering::new();
+    let mut ir = ir_lowering.lower(&ast);
+
+    if debug >= 2 {
+        println!("IR: {}", ir);
+    }
+
+    let mut optimizer = IROptimizer::new();
+    let optimization_stats = optimizer.optimize(&mut ir);
+
+    if debug >= 2 {
+        println!("Optimization stats: \n - {}", optimization_stats.join("\n - "));
+        println!("Optimized IR: {}", ir);
+    }
+
+    let mut codegen = IRRustGenerator::new();
+    let generated_code = codegen.generate_program(&ir);
+
+    if debug >= 3 && !no_color {
+        if let Ok(mut highlighter) = SyntaxHighlighter::new() {
+            if let Ok(highlighted) = highlighter.highlight_with_force(&generated_code, true) {
+                println!("Generated code:\n{}", highlighted);
+            } else {
+                println!("Generated code:\n{}", generated_code);
+            }
+        } else {
+            println!("Generated code:\n{}", generated_code);
+        }
+    } else {
+        println!("Generated code:\n{}", generated_code);
+    }
+
+    if let Some(output_file) = output {
+        fs::write(&output_file, &generated_code)
+            .map_err(|e| format!("Error writing output file '{}': {}", output_file, e))?;
+        println!("Code written to: {}", output_file);
+    }
+
+    Ok(())
 }
 
 fn main() {
     let args = Args::parse();
-    let mut interpreter = ForthInterpreter::with_debug(args.debug);
+    
+    let backend = match Backend::from_str(&args.backend) {
+        Some(b) => b,
+        None => {
+            eprintln!("Unknown backend: {}. Available backends: rust-ir, c-ir, ir-debug-rust, ir-debug-c", args.backend);
+            process::exit(1);
+        }
+    };
 
     match &args.file {
         Some(filename) => {
-            execute_file(filename, &mut interpreter);
+            if let Err(e) = compile_file(filename, backend, args.output, args.debug, args.no_color) {
+                eprintln!("Compilation failed: {}", e);
+                process::exit(1);
+            }
         }
         None => {
-            run_repl(&args, interpreter);
+            eprintln!("No input file specified. Use --help for usage information.");
+            process::exit(1);
         }
     }
 }

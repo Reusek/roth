@@ -67,18 +67,47 @@ impl IROptimizationPass for ConstantFoldingPass {
         let mut i = 0;
         
         while i < function.instructions.len() {
+            // Skip comments when looking for patterns
+            if matches!(function.instructions[i], IRInstruction::Comment(_)) {
+                i += 1;
+                continue;
+            }
+
             // Look for patterns: Push(a) Push(b) BinaryOp -> LoadConst(result)
-            if i + 2 < function.instructions.len() {
+            // We need to find the next two non-comment instructions
+            let mut next_indices = Vec::new();
+            let mut search_idx = i + 1;
+            
+            // Find next two non-comment instructions
+            while search_idx < function.instructions.len() && next_indices.len() < 2 {
+                if !matches!(function.instructions[search_idx], IRInstruction::Comment(_)) {
+                    next_indices.push(search_idx);
+                }
+                search_idx += 1;
+            }
+            
+            if next_indices.len() >= 2 {
+                let idx1 = next_indices[0];
+                let idx2 = next_indices[1];
+                
                 if let (
                     IRInstruction::Push(IRValue::Constant(a)) | IRInstruction::LoadConst(a),
                     IRInstruction::Push(IRValue::Constant(b)) | IRInstruction::LoadConst(b),
                     binary_op
-                ) = (&function.instructions[i], &function.instructions[i + 1], &function.instructions[i + 2]) {
+                ) = (&function.instructions[i], &function.instructions[idx1], &function.instructions[idx2]) {
                     if let Some(folded) = self.try_fold_binary_op(binary_op, *a, *b) {
-                        // Replace three instructions with one
+                        // Replace the three non-comment instructions with one
                         function.instructions[i] = folded;
-                        function.instructions.remove(i + 1);
-                        function.instructions.remove(i + 1); // Remove again since indices shifted
+                        
+                        // Remove the other two instructions (in reverse order to maintain indices)
+                        if idx2 > idx1 {
+                            function.instructions.remove(idx2);
+                            function.instructions.remove(idx1);
+                        } else {
+                            function.instructions.remove(idx1);
+                            function.instructions.remove(idx2);
+                        }
+                        
                         changed = true;
                         self.optimizations_applied += 1;
                         continue; // Don't increment i, check this position again
@@ -87,15 +116,17 @@ impl IROptimizationPass for ConstantFoldingPass {
             }
 
             // Look for patterns: Push(a) UnaryOp -> LoadConst(result)
-            if i + 1 < function.instructions.len() {
+            if next_indices.len() >= 1 {
+                let idx1 = next_indices[0];
+                
                 if let (
                     IRInstruction::Push(IRValue::Constant(a)) | IRInstruction::LoadConst(a),
                     unary_op
-                ) = (&function.instructions[i], &function.instructions[i + 1]) {
+                ) = (&function.instructions[i], &function.instructions[idx1]) {
                     if let Some(folded) = self.try_fold_unary_op(unary_op, *a) {
                         // Replace two instructions with one
                         function.instructions[i] = folded;
-                        function.instructions.remove(i + 1);
+                        function.instructions.remove(idx1);
                         changed = true;
                         self.optimizations_applied += 1;
                         continue; // Don't increment i, check this position again
@@ -402,6 +433,118 @@ impl IROptimizationPass for StrengthReductionPass {
     }
 }
 
+/// Function inlining optimization pass
+pub struct FunctionInliningPass {
+    optimizations_applied: usize,
+    max_inline_size: usize, // Maximum function size to inline
+}
+
+impl FunctionInliningPass {
+    pub fn new() -> Self {
+        Self { 
+            optimizations_applied: 0,
+            max_inline_size: 20, // Don't inline functions with more than 20 instructions
+        }
+    }
+
+    /// Check if a function is safe to inline
+    fn is_inlinable(&self, function: &IRFunction) -> bool {
+        // Don't inline if function is too large
+        if function.instructions.len() > self.max_inline_size {
+            return false;
+        }
+
+        // Check for problematic instructions that make inlining unsafe
+        for instr in &function.instructions {
+            match instr {
+                // Don't inline recursive functions
+                IRInstruction::Call(name) if name == &function.name => return false,
+                // Don't inline functions with control flow (for now)
+                IRInstruction::Jump(_) | 
+                IRInstruction::JumpIf(_) | 
+                IRInstruction::JumpIfNot(_) |
+                IRInstruction::Label(_) => return false,
+                _ => {}
+            }
+        }
+
+        true
+    }
+
+    /// Get the inlinable body of a function (excluding Return instruction)
+    fn get_inline_body(&self, function: &IRFunction) -> Vec<IRInstruction> {
+        function.instructions.iter()
+            .filter(|instr| !matches!(instr, IRInstruction::Return))
+            .cloned()
+            .collect()
+    }
+}
+
+impl IROptimizationPass for FunctionInliningPass {
+    fn name(&self) -> &str {
+        "Function Inlining"
+    }
+
+    fn optimize_program(&mut self, program: &mut IRProgram) -> bool {
+        let mut changed = false;
+        
+        // First, identify which functions are inlinable
+        let mut inlinable_functions = HashMap::new();
+        for (name, function) in &program.functions {
+            if self.is_inlinable(function) {
+                inlinable_functions.insert(name.clone(), self.get_inline_body(function));
+            }
+        }
+
+        // Inline functions in main
+        changed |= self.inline_in_function(&mut program.main, &inlinable_functions);
+        
+        // Inline functions in other functions
+        for (_, function) in program.functions.iter_mut() {
+            changed |= self.inline_in_function(function, &inlinable_functions);
+        }
+        
+        changed
+    }
+
+    fn optimize_function(&mut self, _function: &mut IRFunction) -> bool {
+        // This pass needs access to all functions, so we implement optimize_program instead
+        false
+    }
+}
+
+impl FunctionInliningPass {
+    /// Inline function calls within a single function
+    fn inline_in_function(&mut self, function: &mut IRFunction, inlinable_functions: &HashMap<String, Vec<IRInstruction>>) -> bool {
+        let mut changed = false;
+        let mut i = 0;
+        
+        while i < function.instructions.len() {
+            if let IRInstruction::Call(function_name) = &function.instructions[i] {
+                if let Some(inline_body) = inlinable_functions.get(function_name) {
+                    // Replace the Call instruction with the function body
+                    function.instructions.remove(i);
+                    
+                    // Insert the function body at the current position
+                    for (offset, instr) in inline_body.iter().enumerate() {
+                        function.instructions.insert(i + offset, instr.clone());
+                    }
+                    
+                    changed = true;
+                    self.optimizations_applied += 1;
+                    
+                    // Continue from after the inlined code
+                    i += inline_body.len();
+                    continue;
+                }
+            }
+            i += 1;
+        }
+        
+        changed
+    }
+}
+
 /// IR optimization pipeline that runs multiple passes
 pub struct IROptimizer {
     passes: Vec<Box<dyn IROptimizationPass>>,
@@ -412,6 +555,7 @@ impl IROptimizer {
     pub fn new() -> Self {
         Self {
             passes: vec![
+                Box::new(FunctionInliningPass::new()),  // Run inlining first
                 Box::new(ConstantFoldingPass::new()),
                 Box::new(PeepholeOptimizationPass::new()),
                 Box::new(StrengthReductionPass::new()),

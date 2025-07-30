@@ -60,6 +60,7 @@ impl IRLowering {
     }
 
     fn lower_definition(&mut self, name: &str, body: &[AstNode]) {
+        // Start a new function for this definition
         self.builder.start_function(name);
         self.builder.emit_comment(&format!("Definition: {}", name));
         
@@ -68,6 +69,9 @@ impl IRLowering {
         }
         
         self.builder.emit(IRInstruction::Return);
+        
+        // Switch back to main function
+        self.builder.start_function("main");
     }
 
     fn lower_word(&mut self, name: &str) {
