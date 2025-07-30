@@ -10,3 +10,5 @@ colored = "2.0"
 atty = "0.2"
 clap = { version = "4.0", features = ["derive"] }
 rustyline = "14.0"
+libloading = "0.8"
+tempfile = "3.0"

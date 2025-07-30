@@ -5,6 +5,10 @@ mod analyzer;
 mod codegen;
 mod interpreter;
 mod highlighter;
+mod ir;
+mod ir_lowering;
+mod ir_optimizer;
+mod ir_codegen;
 
 
 use std::fs;
@@ -33,6 +37,9 @@ struct Args {
     
     #[arg(long, help = "Disable syntax highlighting")]
     no_color: bool,
+    
+    #[arg(long, short, default_value = "0", help = "Debug level (0=off, 1=timing, 2=verbose, 3=show highlighted C code)")]
+    debug: u8,
 }
 
 struct ForthCompleter {
@@ -152,6 +159,7 @@ fn run_repl(args: &Args, mut interpreter: ForthInterpreter) {
     println!("  'compile <backend> <code>' - generate and save code with compile instructions");
     println!("  'parse <code>' - show parse tree");
     println!("  'backends' - list available backends");
+    println!("  'hybrid <code>' - execute with hybrid mode (generated + interpreter)");
     println!("Use Tab for completion, Up/Down arrows for history");
 
     loop {
@@ -265,6 +273,15 @@ fn run_repl(args: &Args, mut interpreter: ForthInterpreter) {
                     continue;
                 }
 
+                if line.starts_with("hybrid ") {
+                    let code = &line[7..];
+                    match interpreter.execute_hybrid(code) {
+                        Ok(_) => {}
+                        Err(e) => println!("Hybrid execution error: {}", e),
+                    }
+                    continue;
+                }
+
                 match interpreter.interpret(line) {
                     Ok(_) => {}
                     Err(e) => println!("Error: {}", e),
@@ -290,7 +307,7 @@ fn run_repl(args: &Args, mut interpreter: ForthInterpreter) {
 
 fn main() {
     let args = Args::parse();
-    let mut interpreter = ForthInterpreter::new();
+    let mut interpreter = ForthInterpreter::with_debug(args.debug);
 
     match &args.file {
         Some(filename) => {
