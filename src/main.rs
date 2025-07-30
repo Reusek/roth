@@ -7,6 +7,8 @@ mod interpreter;
 mod highlighter;
 
 
+use std::fs;
+use std::process;
 use crate::interpreter::ForthInterpreter;
 use crate::codegen::Backend;
 use crate::lexer::Lexer;
@@ -26,6 +28,9 @@ use rustyline::Helper;
 #[command(name = "roth")]
 #[command(about = "Enhanced Forth Interpreter in Rust")]
 struct Args {
+    #[arg(help = "Forth file to execute")]
+    file: Option<String>,
+    
     #[arg(long, help = "Disable syntax highlighting")]
     no_color: bool,
 }
@@ -90,9 +95,32 @@ impl Highlighter for ForthCompleter {}
 
 impl Validator for ForthCompleter {}
 
-fn main() {
-    let args = Args::parse();
-    let mut interpreter = ForthInterpreter::new();
+fn execute_file(filename: &str, interpreter: &mut ForthInterpreter) {
+    let content = match fs::read_to_string(filename) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("Error reading file '{}': {}", filename, e);
+            process::exit(1);
+        }
+    };
+
+    for (line_num, line) in content.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        match interpreter.interpret(line) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Error on line {}: {}", line_num + 1, e);
+                process::exit(1);
+            }
+        }
+    }
+}
+
+fn run_repl(args: &Args, mut interpreter: ForthInterpreter) {
     let mut highlighter = if args.no_color {
         None
     } else {
@@ -105,7 +133,6 @@ fn main() {
         }
     };
 
-    // Configure rustyline
     let config = Config::builder()
         .history_ignore_space(true)
         .completion_type(CompletionType::List)
@@ -115,7 +142,6 @@ fn main() {
     let helper = ForthCompleter::new(&interpreter as *const ForthInterpreter);
     rl.set_helper(Some(helper));
 
-    // Load history if it exists
     let history_file = "roth_history.txt";
     let _ = rl.load_history(history_file);
 
@@ -259,6 +285,19 @@ fn main() {
         }
     }
 
-    // Save history
     let _ = rl.save_history(history_file);
+}
+
+fn main() {
+    let args = Args::parse();
+    let mut interpreter = ForthInterpreter::new();
+
+    match &args.file {
+        Some(filename) => {
+            execute_file(filename, &mut interpreter);
+        }
+        None => {
+            run_repl(&args, interpreter);
+        }
+    }
 }
