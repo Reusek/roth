@@ -1,11 +1,13 @@
+use crate::ir::{IRBuilder, IRFunction, IRInstruction, IRLabel, IRProgram, IRValue, StackEffect};
 use crate::types::AstNode;
-use crate::ir::{IRProgram, IRFunction, IRInstruction, IRValue, IRBuilder, StackEffect};
 use std::collections::HashMap;
 
 /// Lowers AST to IR
 pub struct IRLowering {
     builder: IRBuilder,
     word_definitions: HashMap<String, Vec<AstNode>>,
+    loop_stack: Vec<(IRLabel, IRLabel)>, // (loop_start_label, loop_end_label)
+    conditional_stack: Vec<(Option<IRLabel>, IRLabel)>, // (else_label, endif_label)
 }
 
 impl IRLowering {
@@ -13,6 +15,8 @@ impl IRLowering {
         Self {
             builder: IRBuilder::new("main"),
             word_definitions: HashMap::new(),
+            loop_stack: Vec::new(),
+            conditional_stack: Vec::new(),
         }
     }
 
@@ -26,7 +30,7 @@ impl IRLowering {
         match node {
             AstNode::Program(nodes) => {
                 self.builder.emit_comment("Generated from Forth AST");
-                
+
                 // First pass: collect definitions
                 for node in nodes {
                     if let AstNode::Definition { name, body, .. } = node {
@@ -48,10 +52,20 @@ impl IRLowering {
             }
             AstNode::Number(n, _) => {
                 self.builder.emit_comment(&format!("Push constant {}", n));
-                self.builder.emit(IRInstruction::Push(IRValue::Constant(*n)));
+                self.builder
+                    .emit(IRInstruction::Push(IRValue::Constant(*n)));
             }
             AstNode::Word(name, _) => {
                 self.lower_word(name);
+            }
+            AstNode::StringLiteral(s, _) => {
+                self.builder.emit_comment(&format!("String literal: \"{}\"", s));
+                // Push each character of the string onto the stack
+                for ch in s.chars() {
+                    self.builder.emit(IRInstruction::Push(IRValue::Constant(ch as i32)));
+                }
+                // Push string length
+                self.builder.emit(IRInstruction::Push(IRValue::Constant(s.len() as i32)));
             }
             AstNode::Definition { .. } => {
                 // Definitions are handled in the Program case
@@ -63,13 +77,13 @@ impl IRLowering {
         // Start a new function for this definition
         self.builder.start_function(name);
         self.builder.emit_comment(&format!("Definition: {}", name));
-        
+
         for node in body {
             self.lower_node(node);
         }
-        
+
         self.builder.emit(IRInstruction::Return);
-        
+
         // Switch back to main function
         self.builder.start_function("main");
     }
@@ -146,7 +160,8 @@ impl IRLowering {
                 self.builder.emit(IRInstruction::LessEqual);
             }
             ">=" => {
-                self.builder.emit_comment("Greater than or equal comparison");
+                self.builder
+                    .emit_comment("Greater than or equal comparison");
                 self.builder.emit(IRInstruction::GreaterEqual);
             }
 
@@ -183,17 +198,126 @@ impl IRLowering {
             }
             "CR" => {
                 self.builder.emit_comment("Print newline");
-                self.builder.emit(IRInstruction::Push(IRValue::Constant(10))); // ASCII newline
+                self.builder
+                    .emit(IRInstruction::Push(IRValue::Constant(10))); // ASCII newline
                 self.builder.emit(IRInstruction::PrintChar);
+            }
+
+            // Control flow operations
+            "?DO" => {
+                self.builder.emit_comment("Conditional DO loop");
+                let loop_start = self.builder.create_label("loop_start");
+                let loop_end = self.builder.create_label("loop_end");
+
+                // DoLoop instruction: (limit start -- )
+                // If start >= limit, jump to end, otherwise continue
+                self.builder
+                    .emit(IRInstruction::DoLoop(loop_start.clone(), loop_end.clone()));
+                self.builder.emit_label(loop_start.clone());
+
+                // Push this loop onto the stack for LOOP to reference
+                self.loop_stack.push((loop_start, loop_end));
+            }
+            "DO" => {
+                self.builder.emit_comment("DO loop");
+                let loop_start = self.builder.create_label("loop_start");
+                let loop_end = self.builder.create_label("loop_end");
+
+                // Unconditional DO: always enter the loop
+                // Still consume limit and start from stack
+                self.builder
+                    .emit(IRInstruction::DoLoop(loop_start.clone(), loop_end.clone()));
+                self.builder.emit_label(loop_start.clone());
+
+                self.loop_stack.push((loop_start, loop_end));
+            }
+            "LOOP" => {
+                self.builder.emit_comment("LOOP");
+                if let Some((loop_start, loop_end)) = self.loop_stack.pop() {
+                    // Increment loop index and jump back if index < limit
+                    self.builder.emit(IRInstruction::Loop(loop_start));
+                    self.builder.emit_label(loop_end);
+                } else {
+                    // Error: LOOP without matching DO
+                    self.builder.emit_comment("ERROR: LOOP without matching DO");
+                }
+            }
+            "I" => {
+                self.builder.emit_comment("Loop index I");
+                self.builder.emit(IRInstruction::PushLoopIndex);
+            }
+            "J" => {
+                self.builder.emit_comment("Loop index J (outer loop)");
+                // For now, just push the current loop index
+                // In a full implementation, this would be the outer loop index
+                self.builder.emit(IRInstruction::PushLoopIndex);
+            }
+
+            // Conditional control flow
+            "IF" => {
+                self.builder.emit_comment("IF conditional");
+                let else_label = self.builder.create_label("else");
+                let endif_label = self.builder.create_label("endif");
+                
+                // Jump to else/endif if top of stack is false (0)
+                self.builder.emit(IRInstruction::JumpIfNot(else_label.clone()));
+                
+                // Push conditional info onto stack
+                self.conditional_stack.push((Some(else_label), endif_label));
+            }
+            "ELSE" => {
+                self.builder.emit_comment("ELSE");
+                if let Some((Some(else_label), endif_label)) = self.conditional_stack.pop() {
+                    // Jump to endif (skip else part)
+                    self.builder.emit(IRInstruction::Jump(endif_label.clone()));
+                    // Place else label here
+                    self.builder.emit_label(else_label);
+                    // Update stack with no else label (already used)
+                    self.conditional_stack.push((None, endif_label));
+                } else {
+                    self.builder.emit_comment("ERROR: ELSE without matching IF");
+                }
+            }
+            "THEN" => {
+                self.builder.emit_comment("THEN (endif)");
+                if let Some((else_label, endif_label)) = self.conditional_stack.pop() {
+                    // If there was an unused else label, place it here
+                    if let Some(else_lbl) = else_label {
+                        self.builder.emit_label(else_lbl);
+                    }
+                    // Place endif label
+                    self.builder.emit_label(endif_label);
+                } else {
+                    self.builder.emit_comment("ERROR: THEN without matching IF");
+                }
+            }
+
+            // Additional useful words
+            "TYPE" => {
+                self.builder.emit_comment("TYPE - print string");
+                // Expects: addr count -- 
+                // For now, just print characters from stack
+                self.builder.emit(IRInstruction::PrintString);
+            }
+            "SPACE" => {
+                self.builder.emit_comment("SPACE - print a space");
+                self.builder.emit(IRInstruction::Push(IRValue::Constant(32))); // ASCII space
+                self.builder.emit(IRInstruction::PrintChar);
+            }
+            "BL" => {
+                self.builder.emit_comment("BL - push space character");
+                self.builder.emit(IRInstruction::Push(IRValue::Constant(32))); // ASCII space
             }
 
             // User-defined words
             _ => {
                 if self.word_definitions.contains_key(name) {
-                    self.builder.emit_comment(&format!("Call user-defined word: {}", name));
+                    self.builder
+                        .emit_comment(&format!("Call user-defined word: {}", name));
                     self.builder.emit(IRInstruction::Call(name.to_string()));
                 } else {
-                    self.builder.emit_comment(&format!("Unknown word: {}", name));
+                    self.builder
+                        .emit_comment(&format!("Unknown word: {}", name));
                     // For now, treat as no-op, but in a real implementation
                     // this should be an error
                     self.builder.emit(IRInstruction::Nop);
@@ -209,7 +333,7 @@ pub struct StackEffectAnalyzer;
 impl StackEffectAnalyzer {
     pub fn analyze_program(program: &mut IRProgram) {
         Self::analyze_function(&mut program.main);
-        
+
         for (_, function) in program.functions.iter_mut() {
             Self::analyze_function(function);
         }
@@ -223,7 +347,7 @@ impl StackEffectAnalyzer {
         for instruction in &function.instructions {
             let effect = instruction.stack_effect();
             stack_depth = stack_depth - effect.consumes as i32 + effect.produces as i32;
-            
+
             max_depth = max_depth.max(stack_depth);
             min_depth = min_depth.min(stack_depth);
         }
@@ -249,37 +373,39 @@ pub struct IRPrettyPrinter;
 impl IRPrettyPrinter {
     pub fn print_with_stack_analysis(program: &IRProgram) -> String {
         let mut output = String::new();
-        
+
         output.push_str("=== IR Program with Stack Analysis ===\n\n");
         output.push_str(&Self::print_function_with_analysis(&program.main));
-        
+
         for (name, function) in &program.functions {
             if name != "main" {
                 output.push('\n');
                 output.push_str(&Self::print_function_with_analysis(function));
             }
         }
-        
+
         output
     }
 
     fn print_function_with_analysis(function: &IRFunction) -> String {
         let mut output = String::new();
         let mut stack_depth = 0i32;
-        
-        output.push_str(&format!("Function: {} (consumes: {}, produces: {})\n", 
-                                function.name, function.stack_effect.consumes, function.stack_effect.produces));
+
+        output.push_str(&format!(
+            "Function: {} (consumes: {}, produces: {})\n",
+            function.name, function.stack_effect.consumes, function.stack_effect.produces
+        ));
         output.push_str(&format!("{:>3} | {:>5} | Instruction\n", "PC", "Stack"));
         output.push_str("----+-------+------------\n");
 
         for (pc, instruction) in function.instructions.iter().enumerate() {
             let effect = instruction.stack_effect();
-            
+
             output.push_str(&format!("{:3} | {:5} | {}\n", pc, stack_depth, instruction));
-            
+
             stack_depth = stack_depth - effect.consumes as i32 + effect.produces as i32;
         }
-        
+
         output.push_str(&format!("    | {:5} | (final stack depth)\n", stack_depth));
         output
     }
@@ -293,8 +419,12 @@ mod tests {
     #[test]
     fn test_simple_lowering() {
         let mut lowering = IRLowering::new();
-        let pos = Position { line: 1, column: 1, offset: 0 };
-        
+        let pos = Position {
+            line: 1,
+            column: 1,
+            offset: 0,
+        };
+
         let ast = AstNode::Program(vec![
             AstNode::Number(5, pos.clone()),
             AstNode::Number(10, pos.clone()),
@@ -306,15 +436,24 @@ mod tests {
         StackEffectAnalyzer::analyze_program(&mut program);
 
         assert_eq!(program.main.instructions.len(), 9); // Including comments
-        
+
         // Check that we have the right instructions (ignoring comments)
-        let non_comment_instructions: Vec<_> = program.main.instructions.iter()
+        let non_comment_instructions: Vec<_> = program
+            .main
+            .instructions
+            .iter()
             .filter(|instr| !matches!(instr, IRInstruction::Comment(_)))
             .collect();
-        
+
         assert_eq!(non_comment_instructions.len(), 4);
-        assert!(matches!(non_comment_instructions[0], IRInstruction::Push(IRValue::Constant(5))));
-        assert!(matches!(non_comment_instructions[1], IRInstruction::Push(IRValue::Constant(10))));
+        assert!(matches!(
+            non_comment_instructions[0],
+            IRInstruction::Push(IRValue::Constant(5))
+        ));
+        assert!(matches!(
+            non_comment_instructions[1],
+            IRInstruction::Push(IRValue::Constant(10))
+        ));
         assert!(matches!(non_comment_instructions[2], IRInstruction::Add));
         assert!(matches!(non_comment_instructions[3], IRInstruction::Print));
     }
@@ -322,8 +461,12 @@ mod tests {
     #[test]
     fn test_definition_lowering() {
         let mut lowering = IRLowering::new();
-        let pos = Position { line: 1, column: 1, offset: 0 };
-        
+        let pos = Position {
+            line: 1,
+            column: 1,
+            offset: 0,
+        };
+
         let ast = AstNode::Program(vec![
             AstNode::Definition {
                 name: "DOUBLE".to_string(),
@@ -343,21 +486,31 @@ mod tests {
 
         // Should have a DOUBLE function
         assert!(program.functions.contains_key("DOUBLE"));
-        
+
         // Main should call DOUBLE
-        let main_instructions: Vec<_> = program.main.instructions.iter()
+        let main_instructions: Vec<_> = program
+            .main
+            .instructions
+            .iter()
             .filter(|instr| !matches!(instr, IRInstruction::Comment(_)))
             .collect();
-        
-        assert!(main_instructions.iter().any(|instr| 
-            matches!(instr, IRInstruction::Call(name) if name == "DOUBLE")));
+
+        assert!(
+            main_instructions
+                .iter()
+                .any(|instr| matches!(instr, IRInstruction::Call(name) if name == "DOUBLE"))
+        );
     }
 
     #[test]
     fn test_stack_effect_analysis() {
         let mut lowering = IRLowering::new();
-        let pos = Position { line: 1, column: 1, offset: 0 };
-        
+        let pos = Position {
+            line: 1,
+            column: 1,
+            offset: 0,
+        };
+
         // Test: 5 DUP + (should consume 0, produce 1)
         let ast = AstNode::Program(vec![
             AstNode::Number(5, pos.clone()),

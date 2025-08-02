@@ -1,0 +1,5 @@
+
+/home/albert/proj/roth/test_source/functions/semicolon.fs:5:19: warning: redefined negate with NEGATE
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/aliases.fs:162:27: warning: original location
+/home/albert/proj/roth/test_source/functions/semicolon.fs:6:30: warning: redefined abs with ABS
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/aliases.fs:167:27: warning: original location

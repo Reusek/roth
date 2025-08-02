@@ -1,0 +1,28 @@
+( Input/Output Standard Library )
+( Extended I/O operations built from compiler primitives )
+
+( Character output - now using compiler-level SPACE and BL )
+: TAB 9 EMIT ;
+
+( Multiple spaces )
+: SPACES 0 ?DO SPACE LOOP ;
+
+( String output helpers )
+: PRINT-STRING ( addr count -- ) TYPE ;
+: PRINT-CHARS ( count -- ) 0 ?DO EMIT LOOP ;
+
+( Simple string output )
+: HELLO "Hello" TYPE ;
+: WORLD "World" TYPE ;
+
+( Formatted output helpers )
+: .DECIMAL . ;
+: .SPACE . SPACE ;
+: .CR . CR ;
+
+( Line output )
+: LINES 0 ?DO CR LOOP ;
+
+( String utilities )
+: STRING-LENGTH ( addr -- count ) @ ;
+: PRINT-HELLO-WORLD HELLO SPACE WORLD CR ;

@@ -1,4 +1,4 @@
-use crate::types::{Position, Token, TokenType, ParseError};
+use crate::types::{ParseError, Position, Token, TokenType};
 
 pub struct Lexer {
     input: String,
@@ -19,10 +19,10 @@ impl Lexer {
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, ParseError> {
         let mut tokens = Vec::new();
-        
+
         while self.position < self.input.len() {
             self.skip_whitespace();
-            
+
             if self.position >= self.input.len() {
                 break;
             }
@@ -42,7 +42,7 @@ impl Lexer {
 
     fn next_token(&mut self, start_pos: Position) -> Result<Token, ParseError> {
         let ch = self.current_char();
-        
+
         match ch {
             '(' => self.read_comment(start_pos),
             '"' => self.read_string_literal(start_pos),
@@ -53,7 +53,7 @@ impl Lexer {
                     position: start_pos,
                     raw: ":".to_string(),
                 })
-            },
+            }
             ';' => {
                 self.advance();
                 Ok(Token {
@@ -61,10 +61,12 @@ impl Lexer {
                     position: start_pos,
                     raw: ";".to_string(),
                 })
-            },
-            _ if ch.is_ascii_digit() || (ch == '-' && self.peek_char().map_or(false, |c| c.is_ascii_digit())) => {
+            }
+            _ if ch.is_ascii_digit()
+                || (ch == '-' && self.peek_char().map_or(false, |c| c.is_ascii_digit())) =>
+            {
                 self.read_number(start_pos)
-            },
+            }
             _ => self.read_word(start_pos),
         }
     }
@@ -72,7 +74,7 @@ impl Lexer {
     fn read_comment(&mut self, start_pos: Position) -> Result<Token, ParseError> {
         let mut comment = String::new();
         self.advance(); // skip '('
-        
+
         while self.position < self.input.len() {
             let ch = self.current_char();
             if ch == ')' {
@@ -93,7 +95,7 @@ impl Lexer {
     fn read_string_literal(&mut self, start_pos: Position) -> Result<Token, ParseError> {
         let mut string = String::new();
         self.advance(); // skip opening '"'
-        
+
         while self.position < self.input.len() {
             let ch = self.current_char();
             if ch == '"' {
@@ -129,12 +131,12 @@ impl Lexer {
 
     fn read_number(&mut self, start_pos: Position) -> Result<Token, ParseError> {
         let mut number_str = String::new();
-        
+
         if self.current_char() == '-' {
             number_str.push('-');
             self.advance();
         }
-        
+
         while self.position < self.input.len() && self.current_char().is_ascii_digit() {
             number_str.push(self.current_char());
             self.advance();
@@ -155,7 +157,7 @@ impl Lexer {
 
     fn read_word(&mut self, start_pos: Position) -> Result<Token, ParseError> {
         let mut word = String::new();
-        
+
         while self.position < self.input.len() {
             let ch = self.current_char();
             if ch.is_whitespace() || ch == '(' || ch == ')' || ch == '"' {

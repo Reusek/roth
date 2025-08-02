@@ -1,0 +1,8 @@
+Hello World
+8 
+Positive
+Non-positive
+0  1  2  3  4  
+Welcome to Roth Forth!
+<5> 5 -3 1 2 3 
+Square of 7  is 49 

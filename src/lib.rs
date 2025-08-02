@@ -1,0 +1,10 @@
+pub mod analyzer;
+pub mod codegen;
+pub mod highlighter;
+pub mod ir;
+pub mod ir_codegen;
+pub mod ir_lowering;
+pub mod ir_optimizer;
+pub mod lexer;
+pub mod parser;
+pub mod types;

@@ -1,0 +1,5 @@
+
+/home/albert/proj/roth/test_source/control_flow/i.fs:4:6: warning: DO is compile-only
+/home/albert/proj/roth/test_source/control_flow/i.fs:4:19: warning: LOOP is compile-only
+/home/albert/proj/roth/test_source/control_flow/i.fs:6:5: warning: DO is compile-only
+/home/albert/proj/roth/test_source/control_flow/i.fs:6:18: warning: LOOP is compile-only

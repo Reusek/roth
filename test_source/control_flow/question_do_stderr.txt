@@ -1,0 +1,7 @@
+
+/home/albert/proj/roth/test_source/control_flow/question_do.fs:4:5: warning: ?DO is compile-only
+/home/albert/proj/roth/test_source/control_flow/question_do.fs:4:13: warning: LOOP is compile-only
+/home/albert/proj/roth/test_source/control_flow/question_do.fs:6:5: warning: ?DO is compile-only
+/home/albert/proj/roth/test_source/control_flow/question_do.fs:6:13: warning: LOOP is compile-only
+/home/albert/proj/roth/test_source/control_flow/question_do.fs:8:5: warning: ?DO is compile-only
+/home/albert/proj/roth/test_source/control_flow/question_do.fs:8:13: warning: LOOP is compile-only

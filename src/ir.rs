@@ -32,8 +32,8 @@ pub enum IRInstruction {
     Drop,
     Swap,
     Over,
-    Rot,   // ( a b c -- b c a )
-    
+    Rot, // ( a b c -- b c a )
+
     // Arithmetic operations
     Add,
     Sub,
@@ -41,7 +41,7 @@ pub enum IRInstruction {
     Div,
     Mod,
     Neg,
-    
+
     // Comparison operations
     Equal,
     NotEqual,
@@ -49,44 +49,51 @@ pub enum IRInstruction {
     Greater,
     LessEqual,
     GreaterEqual,
-    
+
     // Logical operations
     And,
     Or,
     Not,
-    
+
     // Memory operations
-    Load(IRValue),   // Load from address
-    Store(IRValue),  // Store to address
-    
+    Load(IRValue),  // Load from address
+    Store(IRValue), // Store to address
+
     // Control flow
     Jump(IRLabel),
-    JumpIf(IRLabel),     // Jump if top of stack is true
-    JumpIfNot(IRLabel),  // Jump if top of stack is false
-    Call(String),        // Call function
+    JumpIf(IRLabel),    // Jump if top of stack is true
+    JumpIfNot(IRLabel), // Jump if top of stack is false
+    Call(String),       // Call function
     Return,
-    
+
+    // Loop control
+    DoLoop(IRLabel, IRLabel), // ?DO: (limit start -- ) jump to end_label if start >= limit, otherwise continue to loop_label
+    Loop(IRLabel),            // LOOP: increment index, jump to loop_label if index < limit
+    PushLoopIndex,            // I: push current loop index
+    PushLoopLimit,            // push current loop limit
+
     // I/O operations
     Print,
     PrintStack,
     PrintChar,
+    PrintString,
     ReadChar,
-    
+
     // Labels and metadata
     Label(IRLabel),
     Comment(String),
-    
+
     // Advanced operations for optimization
-    LoadConst(i32),      // Optimized constant loading
+    LoadConst(i32),                           // Optimized constant loading
     BinaryOp(BinaryOpKind, IRValue, IRValue), // Optimized binary operations
     UnaryOp(UnaryOpKind, IRValue),            // Optimized unary operations
-    
+
     // Stack manipulation with known depths
-    StackGet(usize),     // Get item at stack position (0 = top)
+    StackGet(usize),          // Get item at stack position (0 = top)
     StackSet(usize, IRValue), // Set item at stack position
-    StackAlloc(usize),   // Allocate stack space
-    StackFree(usize),    // Free stack space
-    
+    StackAlloc(usize),        // Allocate stack space
+    StackFree(usize),         // Free stack space
+
     // No-op for optimization passes
     Nop,
 }
@@ -94,22 +101,33 @@ pub enum IRInstruction {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IRValue {
     Constant(i32),
-    StackTop,           // Top of stack
-    StackPos(usize),    // Position on stack (0 = top)
-    Variable(String),   // Named variable
-    Temporary(usize),   // Temporary value with ID
+    StackTop,         // Top of stack
+    StackPos(usize),  // Position on stack (0 = top)
+    Variable(String), // Named variable
+    Temporary(usize), // Temporary value with ID
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOpKind {
-    Add, Sub, Mul, Div, Mod,
-    Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual,
-    And, Or,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Equal,
+    NotEqual,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOpKind {
-    Neg, Not,
+    Neg,
+    Not,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -165,17 +183,28 @@ impl fmt::Display for IRInstruction {
             IRInstruction::JumpIfNot(label) => write!(f, "jump_if_not {}", label),
             IRInstruction::Call(name) => write!(f, "call {}", name),
             IRInstruction::Return => write!(f, "return"),
+            IRInstruction::DoLoop(loop_label, end_label) => {
+                write!(f, "do_loop {} {}", loop_label, end_label)
+            }
+            IRInstruction::Loop(loop_label) => write!(f, "loop {}", loop_label),
+            IRInstruction::PushLoopIndex => write!(f, "push_loop_index"),
+            IRInstruction::PushLoopLimit => write!(f, "push_loop_limit"),
             IRInstruction::Print => write!(f, "print"),
             IRInstruction::PrintStack => write!(f, "print_stack"),
             IRInstruction::PrintChar => write!(f, "print_char"),
+            IRInstruction::PrintString => write!(f, "print_string"),
             IRInstruction::ReadChar => write!(f, "read_char"),
             IRInstruction::Label(label) => write!(f, "{}:", label),
             IRInstruction::Comment(text) => write!(f, "; {}", text),
             IRInstruction::LoadConst(val) => write!(f, "load_const {}", val),
-            IRInstruction::BinaryOp(op, a, b) => write!(f, "{:?} {}, {}", op, format_value(a), format_value(b)),
+            IRInstruction::BinaryOp(op, a, b) => {
+                write!(f, "{:?} {}, {}", op, format_value(a), format_value(b))
+            }
             IRInstruction::UnaryOp(op, a) => write!(f, "{:?} {}", op, format_value(a)),
             IRInstruction::StackGet(pos) => write!(f, "stack_get {}", pos),
-            IRInstruction::StackSet(pos, val) => write!(f, "stack_set {}, {}", pos, format_value(val)),
+            IRInstruction::StackSet(pos, val) => {
+                write!(f, "stack_set {}, {}", pos, format_value(val))
+            }
             IRInstruction::StackAlloc(size) => write!(f, "stack_alloc {}", size),
             IRInstruction::StackFree(size) => write!(f, "stack_free {}", size),
             IRInstruction::Nop => write!(f, "nop"),
@@ -195,8 +224,11 @@ fn format_value(val: &IRValue) -> String {
 
 impl fmt::Display for IRFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "function {} (consumes: {}, produces: {}):", 
-                 self.name, self.stack_effect.consumes, self.stack_effect.produces)?;
+        writeln!(
+            f,
+            "function {} (consumes: {}, produces: {}):",
+            self.name, self.stack_effect.consumes, self.stack_effect.produces
+        )?;
         for (i, instr) in self.instructions.iter().enumerate() {
             writeln!(f, "  {:3}: {}", i, instr)?;
         }
@@ -231,7 +263,10 @@ impl IRBuilder {
             current_function: IRFunction {
                 name: function_name.to_string(),
                 instructions: Vec::new(),
-                stack_effect: StackEffect { consumes: 0, produces: 0 },
+                stack_effect: StackEffect {
+                    consumes: 0,
+                    produces: 0,
+                },
             },
             functions: HashMap::new(),
             label_counter: 0,
@@ -267,7 +302,10 @@ impl IRBuilder {
         let mut func = IRFunction {
             name: "temp".to_string(),
             instructions: Vec::new(),
-            stack_effect: StackEffect { consumes: 0, produces: 0 },
+            stack_effect: StackEffect {
+                consumes: 0,
+                produces: 0,
+            },
         };
         std::mem::swap(&mut func, &mut self.current_function);
         func
@@ -278,11 +316,14 @@ impl IRBuilder {
         if !finished.instructions.is_empty() {
             self.functions.insert(finished.name.clone(), finished);
         }
-        
+
         self.current_function = IRFunction {
             name: name.to_string(),
             instructions: Vec::new(),
-            stack_effect: StackEffect { consumes: 0, produces: 0 },
+            stack_effect: StackEffect {
+                consumes: 0,
+                produces: 0,
+            },
         };
     }
 
@@ -299,28 +340,109 @@ impl IRBuilder {
 impl IRInstruction {
     pub fn stack_effect(&self) -> StackEffect {
         match self {
-            IRInstruction::Push(_) | IRInstruction::LoadConst(_) => StackEffect { consumes: 0, produces: 1 },
-            IRInstruction::Pop | IRInstruction::Drop => StackEffect { consumes: 1, produces: 0 },
-            IRInstruction::Dup => StackEffect { consumes: 1, produces: 2 },
-            IRInstruction::Swap | IRInstruction::Over => StackEffect { consumes: 2, produces: 2 },
-            IRInstruction::Rot => StackEffect { consumes: 3, produces: 3 },
-            IRInstruction::Add | IRInstruction::Sub | IRInstruction::Mul | IRInstruction::Div | IRInstruction::Mod => 
-                StackEffect { consumes: 2, produces: 1 },
-            IRInstruction::Neg | IRInstruction::Not => StackEffect { consumes: 1, produces: 1 },
-            IRInstruction::Equal | IRInstruction::NotEqual | IRInstruction::Less | IRInstruction::Greater |
-            IRInstruction::LessEqual | IRInstruction::GreaterEqual | IRInstruction::And | IRInstruction::Or => 
-                StackEffect { consumes: 2, produces: 1 },
-            IRInstruction::Print | IRInstruction::PrintChar => StackEffect { consumes: 1, produces: 0 },
-            IRInstruction::PrintStack => StackEffect { consumes: 0, produces: 0 },
-            IRInstruction::ReadChar => StackEffect { consumes: 0, produces: 1 },
-            IRInstruction::Load(_) => StackEffect { consumes: 0, produces: 1 },
-            IRInstruction::Store(_) => StackEffect { consumes: 1, produces: 0 },
-            IRInstruction::JumpIf(_) | IRInstruction::JumpIfNot(_) => StackEffect { consumes: 1, produces: 0 },
-            IRInstruction::BinaryOp(_, _, _) => StackEffect { consumes: 0, produces: 1 }, // Optimized, no stack effect
-            IRInstruction::UnaryOp(_, _) => StackEffect { consumes: 0, produces: 1 },     // Optimized, no stack effect
-            IRInstruction::StackGet(_) => StackEffect { consumes: 0, produces: 1 },
-            IRInstruction::StackSet(_, _) => StackEffect { consumes: 0, produces: 0 },
-            _ => StackEffect { consumes: 0, produces: 0 }, // No stack effect
+            IRInstruction::Push(_) | IRInstruction::LoadConst(_) => StackEffect {
+                consumes: 0,
+                produces: 1,
+            },
+            IRInstruction::Pop | IRInstruction::Drop => StackEffect {
+                consumes: 1,
+                produces: 0,
+            },
+            IRInstruction::Dup => StackEffect {
+                consumes: 1,
+                produces: 2,
+            },
+            IRInstruction::Swap | IRInstruction::Over => StackEffect {
+                consumes: 2,
+                produces: 2,
+            },
+            IRInstruction::Rot => StackEffect {
+                consumes: 3,
+                produces: 3,
+            },
+            IRInstruction::Add
+            | IRInstruction::Sub
+            | IRInstruction::Mul
+            | IRInstruction::Div
+            | IRInstruction::Mod => StackEffect {
+                consumes: 2,
+                produces: 1,
+            },
+            IRInstruction::Neg | IRInstruction::Not => StackEffect {
+                consumes: 1,
+                produces: 1,
+            },
+            IRInstruction::Equal
+            | IRInstruction::NotEqual
+            | IRInstruction::Less
+            | IRInstruction::Greater
+            | IRInstruction::LessEqual
+            | IRInstruction::GreaterEqual
+            | IRInstruction::And
+            | IRInstruction::Or => StackEffect {
+                consumes: 2,
+                produces: 1,
+            },
+            IRInstruction::Print | IRInstruction::PrintChar => StackEffect {
+                consumes: 1,
+                produces: 0,
+            },
+            IRInstruction::PrintString => StackEffect {
+                consumes: 2, // consumes address and count
+                produces: 0,
+            },
+            IRInstruction::PrintStack => StackEffect {
+                consumes: 0,
+                produces: 0,
+            },
+            IRInstruction::ReadChar => StackEffect {
+                consumes: 0,
+                produces: 1,
+            },
+            IRInstruction::Load(_) => StackEffect {
+                consumes: 0,
+                produces: 1,
+            },
+            IRInstruction::Store(_) => StackEffect {
+                consumes: 1,
+                produces: 0,
+            },
+            IRInstruction::JumpIf(_) | IRInstruction::JumpIfNot(_) => StackEffect {
+                consumes: 1,
+                produces: 0,
+            },
+            IRInstruction::BinaryOp(_, _, _) => StackEffect {
+                consumes: 0,
+                produces: 1,
+            }, // Optimized, no stack effect
+            IRInstruction::UnaryOp(_, _) => StackEffect {
+                consumes: 0,
+                produces: 1,
+            }, // Optimized, no stack effect
+            IRInstruction::StackGet(_) => StackEffect {
+                consumes: 0,
+                produces: 1,
+            },
+            IRInstruction::StackSet(_, _) => StackEffect {
+                consumes: 0,
+                produces: 0,
+            },
+            IRInstruction::DoLoop(_, _) => StackEffect {
+                consumes: 2, // consumes limit and start
+                produces: 0,
+            },
+            IRInstruction::Loop(_) => StackEffect {
+                consumes: 0,
+                produces: 0,
+            },
+            IRInstruction::PushLoopIndex | IRInstruction::PushLoopLimit => StackEffect {
+                consumes: 0,
+                produces: 1,
+            },
+            _ => StackEffect {
+                consumes: 0,
+                produces: 0,
+            }, // No stack effect
         }
     }
 }
@@ -332,27 +454,45 @@ mod tests {
     #[test]
     fn test_ir_builder() {
         let mut builder = IRBuilder::new("main");
-        
+
         builder.emit_comment("Test program: 5 10 +");
         builder.emit(IRInstruction::Push(IRValue::Constant(5)));
         builder.emit(IRInstruction::Push(IRValue::Constant(10)));
         builder.emit(IRInstruction::Add);
         builder.emit(IRInstruction::Print);
-        
+
         let program = builder.build();
-        
+
         assert_eq!(program.main.instructions.len(), 5);
-        assert_eq!(program.main.instructions[1], IRInstruction::Push(IRValue::Constant(5)));
+        assert_eq!(
+            program.main.instructions[1],
+            IRInstruction::Push(IRValue::Constant(5))
+        );
     }
 
     #[test]
     fn test_stack_effects() {
-        assert_eq!(IRInstruction::Push(IRValue::Constant(42)).stack_effect(), 
-                   StackEffect { consumes: 0, produces: 1 });
-        assert_eq!(IRInstruction::Add.stack_effect(), 
-                   StackEffect { consumes: 2, produces: 1 });
-        assert_eq!(IRInstruction::Dup.stack_effect(), 
-                   StackEffect { consumes: 1, produces: 2 });
+        assert_eq!(
+            IRInstruction::Push(IRValue::Constant(42)).stack_effect(),
+            StackEffect {
+                consumes: 0,
+                produces: 1
+            }
+        );
+        assert_eq!(
+            IRInstruction::Add.stack_effect(),
+            StackEffect {
+                consumes: 2,
+                produces: 1
+            }
+        );
+        assert_eq!(
+            IRInstruction::Dup.stack_effect(),
+            StackEffect {
+                consumes: 1,
+                produces: 2
+            }
+        );
     }
 
     #[test]
@@ -361,10 +501,10 @@ mod tests {
         builder.emit(IRInstruction::Push(IRValue::Constant(42)));
         builder.emit(IRInstruction::Dup);
         builder.emit(IRInstruction::Add);
-        
+
         let program = builder.build();
         let output = format!("{}", program);
-        
+
         assert!(output.contains("push 42"));
         assert!(output.contains("dup"));
         assert!(output.contains("add"));

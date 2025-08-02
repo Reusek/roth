@@ -1,0 +1,20 @@
+( Roth Forth Standard Library )
+( Main include file that loads all standard library modules )
+
+( Load core definitions first )
+INCLUDE core.rt
+
+( Load stack manipulation extensions )
+INCLUDE stack.rt
+
+( Load mathematical extensions )
+INCLUDE math.rt
+
+( Load I/O extensions )
+INCLUDE io.rt
+
+( Load control flow extensions )
+INCLUDE control.rt
+
+( Standard library loaded successfully )
+." Roth Forth Standard Library v1.0 loaded" CR

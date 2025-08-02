@@ -1,0 +1,33 @@
+( Core Standard Library - Basic Constants and Utilities )
+( Roth Forth Standard Library )
+
+( Boolean constants )
+: TRUE -1 ;
+: FALSE 0 ;
+
+( Common numeric constants )
+: 0 0 ;
+: 1 1 ;
+: 2 2 ;
+: -1 -1 ;
+
+( Basic increment/decrement )
+: 1+ 1 + ;
+: 1- 1 - ;
+: 2+ 2 + ;
+: 2- 2 - ;
+
+( Zero comparisons )
+: 0= 0 = ;
+: 0< 0 < ;
+: 0> 0 > ;
+: 0<> 0 <> ;
+
+( Useful predicates )
+: POSITIVE? 0 > ;
+: NEGATIVE? 0 < ;
+: ZERO? 0 = ;
+: NONZERO? 0 <> ;
+
+( Conditional execution helpers )
+: ?DUP DUP 0<> IF DUP THEN ;

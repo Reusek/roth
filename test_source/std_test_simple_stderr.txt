@@ -1,0 +1,9 @@
+
+/home/albert/proj/roth/test_source/std_test_simple.fs:17:5: warning: DO is compile-only
+/home/albert/proj/roth/test_source/std_test_simple.fs:17:12: warning: LOOP is compile-only
+in file included from *the terminal*:0:-105186703: 
+in file included from *the terminal*:-1:9: 
+/home/albert/proj/roth/test_source/std_test_simple.fs:31:12: error: Undefined word
+    DUP 1- >>>FACTORIAL<<< *
+Backtrace:
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/int.fs:313:10:  0 $7FDF4800AFD8 throw 

@@ -1,0 +1,7 @@
+
+/home/albert/proj/roth/test_source/control_flow/if.fs:4:7: warning: IF is compile-only
+/home/albert/proj/roth/test_source/control_flow/if.fs:4:15: warning: THEN is compile-only
+/home/albert/proj/roth/test_source/control_flow/if.fs:5:7: warning: IF is compile-only
+/home/albert/proj/roth/test_source/control_flow/if.fs:5:15: warning: THEN is compile-only
+/home/albert/proj/roth/test_source/control_flow/if.fs:6:8: warning: IF is compile-only
+/home/albert/proj/roth/test_source/control_flow/if.fs:6:16: warning: THEN is compile-only

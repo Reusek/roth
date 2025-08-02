@@ -1,0 +1,8 @@
+
+in file included from *the terminal*:0:-115099023: 
+in file included from *the terminal*:-1:9: 
+/home/albert/proj/roth/test_source/std_demo.fs:4:9: error: No such file or directory
+INCLUDE >>>std/std.rt<<<
+Backtrace:
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/require.fs:96:15:  0 $7F3AF1C1E5A8 throw 
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/require.fs:119:26:  1 $7F3AF1C1E6D0 included 

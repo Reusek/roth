@@ -1,0 +1,3 @@
+
+/home/albert/proj/roth/test_source/std_basic_test.fs:17:5: warning: DO is compile-only
+/home/albert/proj/roth/test_source/std_basic_test.fs:17:12: warning: LOOP is compile-only

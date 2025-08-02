@@ -1,6 +1,6 @@
-use tree_sitter::{Parser, Query, QueryCursor};
-use colored::{Colorize, ColoredString};
+use colored::{ColoredString, Colorize};
 use std::collections::HashMap;
+use tree_sitter::{Parser, Query, QueryCursor};
 
 pub struct SyntaxHighlighter {
     parser: Parser,
@@ -27,19 +27,58 @@ impl SyntaxHighlighter {
         let query = Query::new(language, query_source)?;
 
         let mut color_map = HashMap::new();
-        color_map.insert("comment".to_string(), Box::new(|s: &str| s.bright_black()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("string".to_string(), Box::new(|s: &str| s.green()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("number".to_string(), Box::new(|s: &str| s.cyan()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("type".to_string(), Box::new(|s: &str| s.blue()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("identifier".to_string(), Box::new(|s: &str| s.normal()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("function".to_string(), Box::new(|s: &str| s.yellow()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("function.call".to_string(), Box::new(|s: &str| s.bright_yellow()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("keyword".to_string(), Box::new(|s: &str| s.magenta()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("keyword.type".to_string(), Box::new(|s: &str| s.bright_blue()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("preprocessor".to_string(), Box::new(|s: &str| s.bright_magenta()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("punctuation.bracket".to_string(), Box::new(|s: &str| s.bright_white()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("punctuation.delimiter".to_string(), Box::new(|s: &str| s.white()) as Box<dyn Fn(&str) -> ColoredString>);
-        color_map.insert("operator".to_string(), Box::new(|s: &str| s.red()) as Box<dyn Fn(&str) -> ColoredString>);
+        color_map.insert(
+            "comment".to_string(),
+            Box::new(|s: &str| s.bright_black()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "string".to_string(),
+            Box::new(|s: &str| s.green()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "number".to_string(),
+            Box::new(|s: &str| s.cyan()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "type".to_string(),
+            Box::new(|s: &str| s.blue()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "identifier".to_string(),
+            Box::new(|s: &str| s.normal()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "function".to_string(),
+            Box::new(|s: &str| s.yellow()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "function.call".to_string(),
+            Box::new(|s: &str| s.bright_yellow()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "keyword".to_string(),
+            Box::new(|s: &str| s.magenta()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "keyword.type".to_string(),
+            Box::new(|s: &str| s.bright_blue()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "preprocessor".to_string(),
+            Box::new(|s: &str| s.bright_magenta()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "punctuation.bracket".to_string(),
+            Box::new(|s: &str| s.bright_white()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "punctuation.delimiter".to_string(),
+            Box::new(|s: &str| s.white()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
+        color_map.insert(
+            "operator".to_string(),
+            Box::new(|s: &str| s.red()) as Box<dyn Fn(&str) -> ColoredString>,
+        );
 
         Ok(Self {
             parser,
@@ -52,12 +91,19 @@ impl SyntaxHighlighter {
         self.highlight_with_force(code, false)
     }
 
-    pub fn highlight_with_force(&mut self, code: &str, force_color: bool) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn highlight_with_force(
+        &mut self,
+        code: &str,
+        force_color: bool,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         if !force_color && !atty::is(atty::Stream::Stdout) {
             return Ok(code.to_string());
         }
 
-        let tree = self.parser.parse(code, None).ok_or("Failed to parse code")?;
+        let tree = self
+            .parser
+            .parse(code, None)
+            .ok_or("Failed to parse code")?;
         let root_node = tree.root_node();
 
         let mut cursor = QueryCursor::new();
