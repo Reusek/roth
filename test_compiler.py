@@ -71,7 +71,7 @@ class TestRothCompiler:
     ])
     def test_compiler_output(self, fs_file, compiler_cmd, test_source_dir):
         """Test compiler output against reference files."""
-        fs_file_path = test_source_dir / fs_file.name
+        fs_file_path = fs_file
         
         # Get reference files
         stdout_ref_file, stderr_ref_file = self.get_reference_files(fs_file_path)

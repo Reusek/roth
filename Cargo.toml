@@ -9,6 +9,7 @@ tree-sitter-c = "0.20"
 colored = "2.0"
 atty = "0.2"
 clap = { version = "4.0", features = ["derive"] }
+roth-derive = { path = "roth-derive" }
 
 [[bin]]
 name = "roth"

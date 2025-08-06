@@ -1,6 +1,33 @@
 /target
+*/target/
+**/target/
 
 # Generated files
 generated
 generated.c
 roth_history.txt
+
+.build/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Rust build artifacts
+Cargo.lock
+*.rlib
+*.rmeta
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

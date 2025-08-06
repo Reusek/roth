@@ -78,7 +78,12 @@ impl CodeGenerator for IRBasedRustGenerator {
     }
 
     fn get_compile_command(&self, filename: &str) -> String {
-        format!("rustc -O {}", filename)
+        let base_name = std::path::Path::new(filename)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        format!("rustc -O {} -o .build/{}", filename, base_name)
     }
 }
 
@@ -155,11 +160,12 @@ impl CodeGenerator for IRBasedCGenerator {
     }
 
     fn get_compile_command(&self, filename: &str) -> String {
-        format!(
-            "gcc -O2 -o {} {}",
-            filename.trim_end_matches(".c"),
-            filename
-        )
+        let base_name = std::path::Path::new(filename)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        format!("gcc -O2 -o .build/{} {}", base_name, filename)
     }
 }
 
@@ -246,13 +252,14 @@ impl CodeGenerator for IRDebugGenerator {
     }
 
     fn get_compile_command(&self, filename: &str) -> String {
+        let base_name = std::path::Path::new(filename)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
         match self.target.as_str() {
-            "rust" => format!("rustc -O {}", filename),
-            "c" => format!(
-                "gcc -O2 -o {} {}",
-                filename.trim_end_matches(".c"),
-                filename
-            ),
+            "rust" => format!("rustc -O {} -o .build/{}", filename, base_name),
+            "c" => format!("gcc -O2 -o .build/{} {}", base_name, filename),
             _ => format!("# Unknown target: {}", self.target),
         }
     }

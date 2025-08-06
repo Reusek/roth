@@ -1,7 +1,7 @@
 
-in file included from *the terminal*:0:-320071055: 
+in file included from *the terminal*:0:-352249231: 
 in file included from *the terminal*:-1:9: 
 /home/albert/proj/roth/test_source/error_cases/undefined_word.fs:4:1: error: Undefined word
 >>>NONEXISTENT<<<
 Backtrace:
-/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/int.fs:313:10:  0 $7FEF40A0AFD8 throw 
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/int.fs:313:10:  0 $7FB25D40AFD8 throw 

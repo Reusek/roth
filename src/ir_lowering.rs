@@ -8,6 +8,7 @@ pub struct IRLowering {
     word_definitions: HashMap<String, Vec<AstNode>>,
     loop_stack: Vec<(IRLabel, IRLabel)>, // (loop_start_label, loop_end_label)
     conditional_stack: Vec<(Option<IRLabel>, IRLabel)>, // (else_label, endif_label)
+    in_definition: bool, // Track if we're inside a colon definition (compile mode)
 }
 
 impl IRLowering {
@@ -17,6 +18,7 @@ impl IRLowering {
             word_definitions: HashMap::new(),
             loop_stack: Vec::new(),
             conditional_stack: Vec::new(),
+            in_definition: false,
         }
     }
 
@@ -78,13 +80,18 @@ impl IRLowering {
         self.builder.start_function(name);
         self.builder.emit_comment(&format!("Definition: {}", name));
 
+        // Set compile mode flag
+        let was_in_definition = self.in_definition;
+        self.in_definition = true;
+
         for node in body {
             self.lower_node(node);
         }
 
         self.builder.emit(IRInstruction::Return);
 
-        // Switch back to main function
+        // Restore previous mode and switch back to main function
+        self.in_definition = was_in_definition;
         self.builder.start_function("main");
     }
 
@@ -209,8 +216,7 @@ impl IRLowering {
                 let loop_start = self.builder.create_label("loop_start");
                 let loop_end = self.builder.create_label("loop_end");
 
-                // DoLoop instruction: (limit start -- )
-                // If start >= limit, jump to end, otherwise continue
+                // ?DO: skip loop if start >= limit
                 self.builder
                     .emit(IRInstruction::DoLoop(loop_start.clone(), loop_end.clone()));
                 self.builder.emit_label(loop_start.clone());

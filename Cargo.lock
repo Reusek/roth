@@ -233,8 +233,18 @@ dependencies = [
  "atty",
  "clap",
  "colored",
+ "roth-derive",
  "tree-sitter",
  "tree-sitter-c",
+]
+
+[[package]]
+name = "roth-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

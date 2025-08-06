@@ -19,6 +19,7 @@ use crate::lexer::Lexer;
 use crate::parser::Parser;
 use clap::Parser as ClapParser;
 use std::fs;
+use std::path::Path;
 use std::process::{self, Command};
 
 #[derive(ClapParser, Debug)]
@@ -133,14 +134,33 @@ fn compile_file(
         println!("Generated code:\n{}", generated_code);
     }
 
-    // Determine output file name
+    // Create .build directory if it doesn't exist
+    let build_dir = Path::new(".build");
+    if !build_dir.exists() {
+        fs::create_dir_all(build_dir)
+            .map_err(|e| format!("Error creating .build directory: {}", e))?;
+    }
+
+    // Determine output file name in .build directory
     let output_file = match output {
-        Some(ref name) => name.clone(),
+        Some(ref name) => {
+            // If user specifies output, still put it in .build directory
+            let output_path = Path::new(name);
+            let filename = output_path.file_name()
+                .ok_or("Invalid output filename")?
+                .to_str()
+                .ok_or("Invalid output filename encoding")?;
+            build_dir.join(filename).to_string_lossy().to_string()
+        }
         None => {
-            let base_name = filename
-                .trim_end_matches(".rt")
-                .trim_end_matches(".fs");
-            format!("{}.{}", base_name, &file_extension)
+            let base_name = Path::new(filename)
+                .file_stem()
+                .ok_or("Invalid input filename")?
+                .to_str()
+                .ok_or("Invalid input filename encoding")?;
+            build_dir.join(format!("{}.{}", base_name, &file_extension))
+                .to_string_lossy()
+                .to_string()
         }
     };
 
@@ -173,11 +193,20 @@ fn compile_and_run(
                 .to_str()
                 .unwrap()
                 .replace(".", "_");
-            format!("rustc -O --crate-name {} {}", crate_name, source_file)
+            let base_name = std::path::Path::new(source_file)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            format!("rustc -O --crate-name {} {} -o .build/{}", crate_name, source_file, base_name)
         }
         Backend::CIR | Backend::IRDebugC => {
-            let exe_name = source_file.trim_end_matches(".c");
-            format!("gcc -O2 -o {} {}", exe_name, source_file)
+            let base_name = std::path::Path::new(source_file)
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            format!("gcc -O2 -o .build/{} {}", base_name, source_file)
         }
     };
     let parts: Vec<&str> = compile_cmd.split_whitespace().collect();
@@ -205,18 +234,28 @@ fn compile_and_run(
         println!("Compilation successful!");
     }
 
-    // Determine executable name - rustc creates executable in current directory
+    // Determine executable name - executables are created in .build directory
     let executable = if source_file.ends_with(".rs") {
         let base_name = std::path::Path::new(source_file)
             .file_stem()
             .unwrap()
             .to_str()
             .unwrap();
-        base_name.to_string()
+        format!(".build/{}", base_name)
     } else if source_file.ends_with(".c") {
-        source_file.trim_end_matches(".c").to_string()
+        let base_name = std::path::Path::new(source_file)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        format!(".build/{}", base_name)
     } else {
-        source_file.to_string()
+        let base_name = std::path::Path::new(source_file)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        format!(".build/{}", base_name)
     };
 
     if debug >= 1 {
@@ -224,7 +263,7 @@ fn compile_and_run(
     }
 
     // Execute the compiled program
-    let run_output = Command::new(format!("./{}", executable))
+    let run_output = Command::new(&executable)
         .output()
         .map_err(|e| format!("Failed to execute compiled program: {}", e))?;
 

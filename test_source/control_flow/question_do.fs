@@ -1,9 +1,10 @@
 ( Test ?DO construct )
 ( Conditional loop execution )
 
-5 0 ?DO I . LOOP
+: TEST1 5 0 ?DO I . LOOP ;
+TEST1
 CR
-0 0 ?DO I . LOOP
-CR
-2 5 ?DO I . LOOP
+
+: TEST2 0 0 ?DO I . LOOP ;
+TEST2
 CR

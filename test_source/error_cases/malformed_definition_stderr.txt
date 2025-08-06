@@ -1,7 +1,7 @@
 
-in file included from *the terminal*:0:-821187983: 
+in file included from *the terminal*:0:-97371535: 
 in file included from *the terminal*:-1:9: 
 /home/albert/proj/roth/test_source/error_cases/malformed_definition.fs:8:1: error: Undefined word
 >>>INVALID<<< DUP + ;
 Backtrace:
-/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/int.fs:313:10:  0 $7F65CDC0AFD8 throw 
+/nix/store/3nzncr7dgbsp340li6is74m6dabd668y-gforth-0.7.9_20230518/share/gforth/0.7.9_20230518/kernel/int.fs:313:10:  0 $7FF86A80AFD8 throw 

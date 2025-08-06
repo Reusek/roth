@@ -456,7 +456,12 @@ impl CodeGenerator for IRRustGenerator {
     }
 
     fn get_compile_command(&self, filename: &str) -> String {
-        format!("rustc -O {}", filename)
+        let base_name = std::path::Path::new(filename)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        format!("rustc -O {} -o .build/{}", filename, base_name)
     }
 }
 
@@ -671,11 +676,12 @@ impl CodeGenerator for IRCGenerator {
     }
 
     fn get_compile_command(&self, filename: &str) -> String {
-        format!(
-            "gcc -O2 -o {} {}",
-            filename.trim_end_matches(".c"),
-            filename
-        )
+        let base_name = std::path::Path::new(filename)
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        format!("gcc -O2 -o .build/{} {}", base_name, filename)
     }
 }
 
