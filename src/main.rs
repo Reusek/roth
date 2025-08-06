@@ -118,6 +118,22 @@ fn compile_file(
             let ext = codegen.get_file_extension().to_string();
             (code, ext)
         }
+        Backend::ModularRust | Backend::ModularRustDebug => {
+            // Use new framework for modular backends
+            let mut pipeline = crate::codegen::CodegenPipeline::new();
+            let backend_name = backend.to_registry_name();
+            let code = pipeline.generate_code(backend_name, &ir)
+                .unwrap_or_else(|e| format!("// Error: {}", e));
+            (code, "rs".to_string())
+        }
+        Backend::ModularC | Backend::ModularCDebug => {
+            // Use new framework for modular backends
+            let mut pipeline = crate::codegen::CodegenPipeline::new();
+            let backend_name = backend.to_registry_name();
+            let code = pipeline.generate_code(backend_name, &ir)
+                .unwrap_or_else(|e| format!("// Error: {}", e));
+            (code, "c".to_string())
+        }
     };
 
     if debug >= 3 && !no_color {
@@ -186,7 +202,7 @@ fn compile_and_run(
     debug: u8,
 ) -> Result<(), String> {
     let compile_cmd = match backend {
-        Backend::RustIR | Backend::IRDebugRust => {
+        Backend::RustIR | Backend::IRDebugRust | Backend::ModularRust | Backend::ModularRustDebug => {
             let crate_name = std::path::Path::new(source_file)
                 .file_stem()
                 .unwrap()
@@ -200,7 +216,7 @@ fn compile_and_run(
                 .unwrap();
             format!("rustc -O --crate-name {} {} -o .build/{}", crate_name, source_file, base_name)
         }
-        Backend::CIR | Backend::IRDebugC => {
+        Backend::CIR | Backend::IRDebugC | Backend::ModularC | Backend::ModularCDebug => {
             let base_name = std::path::Path::new(source_file)
                 .file_stem()
                 .unwrap()
