@@ -1,0 +1,142 @@
+\babel@toc {czech}{}\relax 
+\contentsline {section}{\numberline {1}Úvod}{10}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Motivace}{10}{subsection.1.1}%
+\contentsline {paragraph}{\numberline {1.1.0.1}Vzdělávací hodnota zásobníkových jazyků.}{10}{paragraph.1.1.0.1}%
+\contentsline {paragraph}{\numberline {1.1.0.2}Praktické využití kompilátoru.}{10}{paragraph.1.1.0.2}%
+\contentsline {paragraph}{\numberline {1.1.0.3}Volba jazyka Rust pro implementaci.}{10}{paragraph.1.1.0.3}%
+\contentsline {subsection}{\numberline {1.2}Cíle práce}{11}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Struktura dokumentu}{11}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Teoretický základ}{12}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Jazyk Forth}{12}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Historie a filozofie}{12}{subsubsection.2.1.1}%
+\contentsline {paragraph}{\numberline {2.1.1.1}Jednoduchost a minimalismus.}{12}{paragraph.2.1.1.1}%
+\contentsline {paragraph}{\numberline {2.1.1.2}Kompozice malých částí.}{12}{paragraph.2.1.1.2}%
+\contentsline {paragraph}{\numberline {2.1.1.3}Interaktivita a okamžitá zpětná vazba.}{12}{paragraph.2.1.1.3}%
+\contentsline {paragraph}{\numberline {2.1.1.4}Programátor jako architekt.}{12}{paragraph.2.1.1.4}%
+\contentsline {subsubsection}{\numberline {2.1.2}Zásobníková architektura}{13}{subsubsection.2.1.2}%
+\contentsline {paragraph}{\numberline {2.1.2.1}Datový zásobník.}{13}{paragraph.2.1.2.1}%
+\contentsline {paragraph}{\numberline {2.1.2.2}Návratový zásobník.}{13}{paragraph.2.1.2.2}%
+\contentsline {paragraph}{\numberline {2.1.2.3}Reverzní polská notace.}{14}{paragraph.2.1.2.3}%
+\contentsline {paragraph}{\numberline {2.1.2.4}Stack effects.}{14}{paragraph.2.1.2.4}%
+\contentsline {subsubsection}{\numberline {2.1.3}Syntaxe a sémantika}{14}{subsubsection.2.1.3}%
+\contentsline {paragraph}{\numberline {2.1.3.1}Slova.}{14}{paragraph.2.1.3.1}%
+\contentsline {paragraph}{\numberline {2.1.3.2}Čísla.}{15}{paragraph.2.1.3.2}%
+\contentsline {paragraph}{\numberline {2.1.3.3}Řídicí struktury.}{15}{paragraph.2.1.3.3}%
+\contentsline {paragraph}{\numberline {2.1.3.4}Proměnné a paměť.}{15}{paragraph.2.1.3.4}%
+\contentsline {subsubsection}{\numberline {2.1.4}Existující implementace}{15}{subsubsection.2.1.4}%
+\contentsline {paragraph}{\numberline {2.1.4.1}Gforth.}{15}{paragraph.2.1.4.1}%
+\contentsline {paragraph}{\numberline {2.1.4.2}Historické a specializované implementace.}{16}{paragraph.2.1.4.2}%
+\contentsline {paragraph}{\numberline {2.1.4.3}Standard Forth 2012.}{16}{paragraph.2.1.4.3}%
+\contentsline {paragraph}{\numberline {2.1.4.4}Vztah jazyka Roth k~existujícím implementacím.}{17}{paragraph.2.1.4.4}%
+\contentsline {subsection}{\numberline {2.2}Kompilátory a interpretery}{17}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Fáze kompilace}{17}{subsubsection.2.2.1}%
+\contentsline {paragraph}{\numberline {2.2.1.1}Lexikální analýza (lexer).}{17}{paragraph.2.2.1.1}%
+\contentsline {paragraph}{\numberline {2.2.1.2}Syntaktická analýza (parser).}{17}{paragraph.2.2.1.2}%
+\contentsline {paragraph}{\numberline {2.2.1.3}Sémantická analýza.}{18}{paragraph.2.2.1.3}%
+\contentsline {paragraph}{\numberline {2.2.1.4}Generování mezikódu.}{18}{paragraph.2.2.1.4}%
+\contentsline {paragraph}{\numberline {2.2.1.5}Optimalizace.}{18}{paragraph.2.2.1.5}%
+\contentsline {paragraph}{\numberline {2.2.1.6}Generování cílového kódu.}{18}{paragraph.2.2.1.6}%
+\contentsline {subsubsection}{\numberline {2.2.2}Mezikód}{18}{subsubsection.2.2.2}%
+\contentsline {paragraph}{\numberline {2.2.2.1}Typy mezikódu.}{19}{paragraph.2.2.2.1}%
+\contentsline {paragraph}{\numberline {2.2.2.2}Mezikód kompilátoru Roth.}{19}{paragraph.2.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Optimalizace}{20}{subsubsection.2.2.3}%
+\contentsline {paragraph}{\numberline {2.2.3.1}Constant folding.}{20}{paragraph.2.2.3.1}%
+\contentsline {paragraph}{\numberline {2.2.3.2}Dead code elimination.}{20}{paragraph.2.2.3.2}%
+\contentsline {paragraph}{\numberline {2.2.3.3}Peephole optimalizace.}{20}{paragraph.2.2.3.3}%
+\contentsline {paragraph}{\numberline {2.2.3.4}Strength reduction.}{21}{paragraph.2.2.3.4}%
+\contentsline {paragraph}{\numberline {2.2.3.5}Function inlining.}{21}{paragraph.2.2.3.5}%
+\contentsline {paragraph}{\numberline {2.2.3.6}Iterativní optimalizace.}{21}{paragraph.2.2.3.6}%
+\contentsline {subsection}{\numberline {2.3}Programovací jazyk Rust}{21}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Algebraické datové typy}{21}{subsubsection.2.3.1}%
+\contentsline {paragraph}{\numberline {2.3.1.1}Reprezentace AST.}{22}{paragraph.2.3.1.1}%
+\contentsline {paragraph}{\numberline {2.3.1.2}Reprezentace mezikódu.}{22}{paragraph.2.3.1.2}%
+\contentsline {subsubsection}{\numberline {2.3.2}Pattern matching}{22}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.3}Ownership a bezpečnost paměti}{23}{subsubsection.2.3.3}%
+\contentsline {paragraph}{\numberline {2.3.3.1}Pravidla ownership.}{23}{paragraph.2.3.3.1}%
+\contentsline {paragraph}{\numberline {2.3.3.2}Výpůjčky (borrowing).}{23}{paragraph.2.3.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.4}Traity a polymorfismus}{23}{subsubsection.2.3.4}%
+\contentsline {subsubsection}{\numberline {2.3.5}Procedurální makra}{24}{subsubsection.2.3.5}%
+\contentsline {subsubsection}{\numberline {2.3.6}Správa závislostí a ekosystém}{24}{subsubsection.2.3.6}%
+\contentsline {section}{\numberline {3}Analýza a návrh}{25}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Požadavky na kompilátor}{25}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Funkční požadavky}{25}{subsubsection.3.1.1}%
+\contentsline {paragraph}{\numberline {3.1.1.1}Kompilace zdrojového kódu.}{25}{paragraph.3.1.1.1}%
+\contentsline {paragraph}{\numberline {3.1.1.2}Podpora více cílových platforem.}{25}{paragraph.3.1.1.2}%
+\contentsline {paragraph}{\numberline {3.1.1.3}Interaktivní prostředí REPL.}{25}{paragraph.3.1.1.3}%
+\contentsline {paragraph}{\numberline {3.1.1.4}Optimalizace kódu.}{26}{paragraph.3.1.1.4}%
+\contentsline {paragraph}{\numberline {3.1.1.5}Sémantická kontrola.}{26}{paragraph.3.1.1.5}%
+\contentsline {paragraph}{\numberline {3.1.1.6}Podpora pro inkluze souborů.}{26}{paragraph.3.1.1.6}%
+\contentsline {subsubsection}{\numberline {3.1.2}Nefunkční požadavky}{26}{subsubsection.3.1.2}%
+\contentsline {paragraph}{\numberline {3.1.2.1}Rozšiřitelnost.}{26}{paragraph.3.1.2.1}%
+\contentsline {paragraph}{\numberline {3.1.2.2}Modularita.}{26}{paragraph.3.1.2.2}%
+\contentsline {paragraph}{\numberline {3.1.2.3}Diagnostika chyb.}{26}{paragraph.3.1.2.3}%
+\contentsline {paragraph}{\numberline {3.1.2.4}Výkonnost.}{26}{paragraph.3.1.2.4}%
+\contentsline {subsection}{\numberline {3.2}Architektura systému}{26}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Frontend}{27}{subsubsection.3.2.1}%
+\contentsline {paragraph}{\numberline {3.2.1.1}Lexer.}{27}{paragraph.3.2.1.1}%
+\contentsline {paragraph}{\numberline {3.2.1.2}Parser.}{27}{paragraph.3.2.1.2}%
+\contentsline {paragraph}{\numberline {3.2.1.3}Sémantický analyzátor.}{27}{paragraph.3.2.1.3}%
+\contentsline {subsubsection}{\numberline {3.2.2}Middle-end}{28}{subsubsection.3.2.2}%
+\contentsline {paragraph}{\numberline {3.2.2.1}IR Lowering.}{28}{paragraph.3.2.2.1}%
+\contentsline {paragraph}{\numberline {3.2.2.2}Optimalizátor.}{28}{paragraph.3.2.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Backend}{28}{subsubsection.3.2.3}%
+\contentsline {paragraph}{\numberline {3.2.3.1}Rust Backend.}{28}{paragraph.3.2.3.1}%
+\contentsline {paragraph}{\numberline {3.2.3.2}C Backend.}{28}{paragraph.3.2.3.2}%
+\contentsline {subsection}{\numberline {3.3}Návrh mezikódu}{28}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Struktura IR}{29}{subsubsection.3.3.1}%
+\contentsline {paragraph}{\numberline {3.3.1.1}IRProgram.}{29}{paragraph.3.3.1.1}%
+\contentsline {paragraph}{\numberline {3.3.1.2}IRFunction.}{29}{paragraph.3.3.1.2}%
+\contentsline {paragraph}{\numberline {3.3.1.3}StackEffect.}{29}{paragraph.3.3.1.3}%
+\contentsline {subsubsection}{\numberline {3.3.2}Instrukční sada}{29}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Stack Effect anotace}{29}{subsubsection.3.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.4}Hodnoty v~IR}{30}{subsubsection.3.3.4}%
+\contentsline {subsection}{\numberline {3.4}Návrh optimalizačních průchodů}{30}{subsection.3.4}%
+\contentsline {subsubsection}{\numberline {3.4.1}Rozhraní optimalizačního průchodu}{30}{subsubsection.3.4.1}%
+\contentsline {subsubsection}{\numberline {3.4.2}Implementované průchody}{30}{subsubsection.3.4.2}%
+\contentsline {paragraph}{\numberline {3.4.2.1}Function Inlining.}{31}{paragraph.3.4.2.1}%
+\contentsline {paragraph}{\numberline {3.4.2.2}Constant Folding.}{31}{paragraph.3.4.2.2}%
+\contentsline {paragraph}{\numberline {3.4.2.3}Peephole Optimization.}{31}{paragraph.3.4.2.3}%
+\contentsline {paragraph}{\numberline {3.4.2.4}Strength Reduction.}{31}{paragraph.3.4.2.4}%
+\contentsline {paragraph}{\numberline {3.4.2.5}Dead Code Elimination.}{31}{paragraph.3.4.2.5}%
+\contentsline {subsubsection}{\numberline {3.4.3}Optimalizační pipeline}{32}{subsubsection.3.4.3}%
+\contentsline {subsubsection}{\numberline {3.4.4}Příklad optimalizace}{32}{subsubsection.3.4.4}%
+\contentsline {section}{\numberline {4}Implementace}{33}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Lexikální analýza}{33}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Syntaktická analýza}{33}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Sémantická analýza}{34}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Generování mezikódu}{35}{subsection.4.4}%
+\contentsline {paragraph}{\numberline {4.4.0.1}Proměnné.}{35}{paragraph.4.4.0.1}%
+\contentsline {paragraph}{\numberline {4.4.0.2}Řídicí struktury.}{36}{paragraph.4.4.0.2}%
+\contentsline {paragraph}{\numberline {4.4.0.3}Výpočet stack effect.}{36}{paragraph.4.4.0.3}%
+\contentsline {subsection}{\numberline {4.5}Optimalizace}{36}{subsection.4.5}%
+\contentsline {subsubsection}{\numberline {4.5.1}Constant folding}{36}{subsubsection.4.5.1}%
+\contentsline {subsubsection}{\numberline {4.5.2}Dead code elimination}{36}{subsubsection.4.5.2}%
+\contentsline {subsubsection}{\numberline {4.5.3}Peephole optimalizace}{36}{subsubsection.4.5.3}%
+\contentsline {subsubsection}{\numberline {4.5.4}Strength reduction}{36}{subsubsection.4.5.4}%
+\contentsline {subsubsection}{\numberline {4.5.5}Inlining}{36}{subsubsection.4.5.5}%
+\contentsline {subsection}{\numberline {4.6}Generování cílového kódu}{37}{subsection.4.6}%
+\contentsline {subsubsection}{\numberline {4.6.1}Backend pro Rust}{37}{subsubsection.4.6.1}%
+\contentsline {subsubsection}{\numberline {4.6.2}Backend pro C}{37}{subsubsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.7}REPL s JIT kompilací}{37}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}Standardní knihovna}{38}{subsection.4.8}%
+\contentsline {section}{\numberline {5}Testování a vyhodnocení}{38}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Testovací metodika}{38}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Výsledky testování}{39}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Porovnání s existujícími implementacemi}{39}{subsection.5.3}%
+\contentsline {section}{Z\'av\v er}{41}{section*.4}%
+\babel@toc {czech}{}\relax 
+\babel@toc {czech}{}\relax 
+\contentsline {section}{Conclusions}{42}{section*.6}%
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\contentsline {section}{\numberline {A}Obsah elektronických dat}{43}{appendix.A}%
+\contentsline {section}{\numberline {B}Uživatelská dokumentace}{43}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}Požadavky}{43}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.2}Sestavení a testy}{44}{subsection.B.2}%
+\contentsline {subsection}{\numberline {B.3}Kompilace souboru}{44}{subsection.B.3}%
+\contentsline {paragraph}{\numberline {B.3.0.1}Režim \texttt {--run}.}{44}{paragraph.B.3.0.1}%
+\contentsline {subsection}{\numberline {B.4}Ladění výpisů}{44}{subsection.B.4}%
+\contentsline {subsection}{\numberline {B.5}REPL režim}{45}{subsection.B.5}%
+\contentsline {section}{\numberline {C}Gramatika jazyka}{45}{appendix.C}%
+\contentsline {subsection}{\numberline {C.1}Lexikální pravidla}{45}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.2}Syntaktická pravidla (EBNF)}{46}{subsection.C.2}%

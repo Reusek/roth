@@ -1,0 +1,707 @@
+%%%  Bakalářská práce - Roth: Kompilátor jazyka Forth v Rustu
+%%%  Albert Klinkovský, 2026
+
+
+%%  Pro získání PDF souboru dokumentu je třeba tento zdrojový text v
+%%  LaTeXu přeložit (dvakrát) programem pdfLaTeX.
+
+%%  V případě použití programu BibLaTeX pro tvorbu seznamu literatury
+%%  je poté ještě třeba spustit program Biber s parametrem jméno
+%%  souboru zdrojového textu bez přípony a následně opět (dvakrát)
+%%  přeložit zdrojový text programem pdfLaTeX.
+
+\documentclass[
+%  master,
+%  program=ainfvs,
+%  printversion,
+  biblatex,
+%  language=english,
+%  font=sans,
+  figures=false,
+%  tables=false,
+%  theorems,
+  sourcecodes,
+  glossaries,
+%  index
+]{kidiplom}
+
+%% Název práce
+\title{Návrh a implementace zásobníkového jazyka s JIT kompilací v jazyce Rust}
+\title[english]{Design and implementation of a stack language with JIT compilation in Rust}
+
+%% Autor a vedoucí
+\author{Albert Klinkovský}
+\supervisor{Mgr. Jan Laštovička, Ph.D.}
+
+%% Anotace
+\annotation{Práce se zabývá návrhem a implementací kompilátoru
+  zásobníkového programovacího jazyka inspirovaného jazykem Forth.
+  Kompilátor je implementován v jazyce Rust a podporuje více cílových
+  platforem (Rust, C). Součástí práce je interaktivní prostředí REPL
+  využívající JIT kompilaci, optimalizační průchody nad mezikódem
+  a standardní knihovna jazyka.}
+
+\annotation[english]{This thesis deals with the design and implementation
+  of a compiler for a stack-based programming language inspired by Forth.
+  The compiler is implemented in Rust and supports multiple target platforms
+  (Rust, C). The work includes an interactive REPL environment using JIT
+  compilation, optimization passes over intermediate representation,
+  and a standard library for the language.}
+
+%% Klíčová slova
+\keywords{kompilátor; Forth; Rust; zásobníkový jazyk; JIT kompilace; optimalizace}
+\keywords[english]{compiler; Forth; Rust; stack-based language; JIT compilation; optimization}
+
+%% Poděkování
+\thanks{Děkuji vedoucímu práce za odborné vedení a cenné rady.}
+
+%% Bibliografie
+\bibliography{bibliografie.bib}
+
+%% Další balíky
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+\usepackage{booktabs}
+
+%% listings does not ship Rust/Forth/bash definitions by default.
+%% Define minimal languages used in code examples.
+\lstdefinelanguage{Rust}{
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  keywords={
+    as,break,const,continue,crate,else,enum,extern,false,fn,for,if,impl,in,
+    let,loop,match,mod,move,mut,pub,ref,return,self,Self,static,struct,
+    super,trait,true,type,unsafe,use,where,while
+  }
+}
+
+\lstdefinelanguage{Forth}{
+  sensitive=true,
+  morecomment=[s]{(}{)},
+  morestring=[b]"
+}
+
+\lstdefinelanguage{bash}{
+  sensitive=true,
+  morecomment=[l]{\#},
+  morestring=[b]"
+}
+
+%% kidiplom.cls may call \printglossary even when glossaries are disabled.
+%% Provide no-op fallbacks to keep builds non-interactive.
+\providecommand{\printglossary}[1][]{ }
+\providecommand{\printglossaries}{ }
+
+\begin{document}
+\maketitle
+
+%% Pomocná makra
+\newcommand{\Roth}{\textsc{Roth}}
+\newcommand{\Forth}{\textsc{Forth}}
+
+\input{chapters/01-uvod}
+
+
+%% ===================================================================
+%% KAPITOLA 2: TEORETICKÝ ZÁKLAD
+%% ===================================================================
+\section{Teoretický základ}
+\label{sec:teorie}
+
+\input{chapters/02-forth}
+
+\input{chapters/02-kompilatory}
+
+\input{chapters/02-rust}
+
+
+%% ===================================================================
+%% KAPITOLA 3: ANALÝZA A NÁVRH
+%% ===================================================================
+\section{Analýza a návrh}
+\label{sec:navrh}
+
+\input{chapters/03-navrh}
+
+
+%% ===================================================================
+%% KAPITOLA 4: IMPLEMENTACE
+%% ===================================================================
+\section{Implementace}
+\label{sec:implementace}
+
+\subsection{Lexikální analýza}
+\label{sec:lexer}
+
+Lexikální analyzátor převádí vstupní text na sekvenci tokenů, které jsou
+následně zpracovány parserem. V~kompilátoru \\Roth{} je lexer implementován
+v~modulu \texttt{src/lexer.rs} jako struktura \texttt{Lexer}, která si uchovává:
+(1) celý vstup jako řetězec, (2) aktuální pozici ve vstupu a~(3) informace o~řádku
+a~sloupci pro diagnostiku chyb.
+
+Každý token nese kromě svého typu také původní text (pole \texttt{raw}) a~pozici
+\texttt{Position} (řádek, sloupec a~offset ve vstupu). Tato volba zjednodušuje
+generování chybových hlášení ve všech následujících fázích.
+
+Typy tokenů jsou definovány výčtem \texttt{TokenType} v~\texttt{src/types.rs}.
+Lexer rozpoznává celočíselné literály (\texttt{i32}), identifikátory (slova),
+oddělovače definic (\texttt{:} a~\texttt{;}), komentáře v~závorkách
+\texttt{(\dots)} a~řetězcové literály.
+
+Specifickým prvkem inspirovaným \Forth{} je podpora syntaxe \texttt{S\" ...\"},
+která umožňuje zapisovat řetězec bez explicitního uzavírání do tokenů jednotlivých
+slov. Lexer tento vzor detekuje ještě před obecným rozlišením tokenu.
+
+\begin{lstlisting}[language=Rust, caption={Rozpoznání tokenu v lexeru}, float=htbp]
+fn next_token(&mut self, start_pos: Position) -> Result<Token, ParseError> {
+    let ch = self.current_char();
+    if (ch == 'S' || ch == 's') && self.peek_char() == Some('"') {
+        return self.read_s_quote_literal(start_pos);
+    }
+    match ch {
+        '(' => self.read_comment(start_pos),
+        '"' => self.read_string_literal(start_pos),
+        ':' | ';' => self.read_definition_token(start_pos),
+        _ => self.read_token(start_pos),
+    }
+}
+\end{lstlisting}
+
+Metoda \texttt{read\_token} načte nejdelší podřetězec oddělený bílými znaky
+a~pokusí se jej převést na číslo. Pokud převod selže, token je interpretován jako
+slovo a~normalizován na velká písmena (\texttt{to\_uppercase}). To sjednocuje
+zpracování slov nezávisle na velikosti písmen ve zdrojovém kódu.
+
+Komentáře v~závorkách jsou tokenizovány jako \texttt{TokenType::Comment}.
+Parser i~další fáze je následně mohou ignorovat nebo využít (např. pro zachování
+informativních poznámek v~IR ve formě \texttt{Comment} instrukcí).
+
+\subsection{Syntaktická analýza}
+\label{sec:parser}
+
+Parser (\texttt{src/parser.rs}) je implementován jako jednoduchý
+rekurzivně-sestupný analyzátor nad vektorem tokenů. Vzhledem
+k~tomu, že zásobníkový jazyk má lineární zápis (program je sekvence slov
+a~literálů), je výsledný abstraktní syntaktický strom (AST) záměrně mělký.
+
+Kořenem AST je uzel \texttt{Program}, který obsahuje seznam příkazů. Jedinou
+hierarchickou konstrukcí jsou definice slov uzavřené mezi \texttt{:} a~\texttt{;},
+které jsou reprezentovány uzlem \texttt{Definition} s~vlastním tělem.
+
+Základní uzly AST jsou definovány v~\texttt{src/types.rs}.
+
+\begin{lstlisting}[language=Rust, caption={Základní uzly AST}]
+pub enum AstNode {
+    Number(i32, Position),
+    Word(String, Position),
+    StringLiteral(String, Position),
+    Definition { name: String, body: Vec<AstNode>, position: Position },
+    VariableDeclaration { name: String, position: Position },
+    Program(Vec<AstNode>),
+}
+\end{lstlisting}
+
+Parser v~celém programu ignoruje tokeny typu \texttt{Comment}. Tím se snižuje
+komplexita syntaktické analýzy bez ztráty informace o~pozicích chyb, protože
+pozice je nesena i~ostatními tokeny.
+
+Definice slova je parsována následovně: po \texttt{:} musí následovat jméno
+slova, poté parser postupně načítá uzly těla až do \texttt{;}. Vnořené definice
+jsou zakázány a~jsou vyhodnoceny jako syntaktická chyba.
+
+Parser zároveň implementuje speciální pravidlo pro konstrukci \texttt{VARIABLE}.
+Pokud se v~toku tokenů objeví slovo \texttt{VARIABLE}, parser očekává následující
+identifikátor, který uloží do uzlu \texttt{VariableDeclaration}. Vlastní práce
+s~proměnnými je řešena až v~nižších fázích (sémantika a~IR).
+
+\subsection{Sémantická analýza}
+\label{sec:analyzer}
+
+Sémantická analýza (\texttt{src/analyzer.rs}) ověřuje, že program používá pouze
+existující slova a~že uživatelské definice neporušují pravidla jazyka.
+V~kompilátoru \\Roth{} je analýza založena na udržování tří tabulek:
+\texttt{builtin\_words}, \texttt{defined\_words} a~\texttt{defined\_variables}.
+
+Při inicializaci analyzátoru je tabulka vestavěných slov naplněna seznamem
+primitivních operací (aritmetika, práce se zásobníkem, I/O, řízení toku,
+práce s~pamětí). Vestavěná slova jsou považována za součást definice jazyka a~nelze
+je redefinovat.
+
+Analýza prochází AST rekurzivně:
+\begin{itemize}
+	\item při uzlu \texttt{Definition} ověří, že jméno není vestavěné, následně
+	      přidá slovo mezi definovaná ještě \emph{před} analýzou těla;
+	      tím je umožněna rekurze pomocí \texttt{RECURSE},
+	\item při uzlu \texttt{Word} ověří, že se jedná o~vestavěné slovo, uživatelsky
+	      definované slovo, nebo proměnnou,
+	\item při \texttt{VariableDeclaration} registruje proměnnou v tabulce.
+\end{itemize}
+
+V~režimu REPL je tato fáze rozšířena o~kontext předchozích vstupů: před voláním
+\texttt{analyze} jsou do analyzátoru doplněny již definované slova a~proměnné,
+aby bylo možné na ně navazovat (viz sekce~\ref{sec:repl}).
+
+\subsection{Generování mezikódu}
+\label{sec:ir}
+
+Mezikód (IR) je generován v~modulu \texttt{src/ir\_lowering.rs} transformací
+AST na strukturu \texttt{IRProgram}. Implementace používá pomocnou strukturu
+\texttt{IRBuilder} (\texttt{src/ir.rs}), která umožňuje postupně emitovat
+instrukce do právě budované funkce.
+
+Lowering je realizován ve třech krocích, které odpovídají přirozené struktuře
+\Forth{}-like programu:
+\begin{enumerate}
+	\item nejprve se sesbírají všechny definice slov do mapy \texttt{word\_definitions},
+	\item následně se pro každé slovo vytvoří samostatná IR funkce,
+	\item nakonec je přeložena hlavní část programu (kód mimo definice) do funkce \texttt{main}.
+\end{enumerate}
+
+Číselné literály jsou překládány na instrukci \texttt{Push(Constant)}.
+Řetězcové literály jsou v~současné implementaci reprezentovány jako sekvence
+znaků uložených na zásobník (ASCII kódy) následovaná délkou řetězce; to
+odpovídá očekávanému stack efektu slova \texttt{TYPE}.
+
+\paragraph{Proměnné.}
+Při zpracování uzlu \texttt{VariableDeclaration} je proměnné přidělena celočíselná
+adresa z~rostoucího čítače. Při použití proměnné jako slova (tj. token \texttt{Word}
+odpovídá jménu proměnné) lowering vloží na zásobník její adresu.
+Operace \texttt{@} a~\texttt{!} jsou mapovány na instrukce \texttt{Load} a~\texttt{Store}.
+
+\paragraph{Řídicí struktury.}
+Základní struktury \texttt{IF/ELSE/THEN} a~\texttt{DO/LOOP} jsou překládány na
+instrukce se skoky a~návěstími (\texttt{Jump}, \texttt{JumpIfNot}, \texttt{Label})
+pomocí generování unikátních návěstí v~\texttt{IRBuilder}. Pro správné párování
+konstrukcí lowering udržuje pomocné zásobníky (\texttt{loop\_stack} a~\texttt{conditional\_stack}).
+
+\paragraph{Výpočet stack effect.}
+Po vygenerování IR je nad funkcemi spuštěna analýza stack efektu
+(\texttt{StackEffectAnalyzer}), která z~anotací instrukcí (procedurální makro
+\texttt{\#[derive(StackEffect)]} v~\texttt{roth-derive}) vypočítá čistou změnu
+hloubky zásobníku pro každou funkci. Tato informace je později využita
+optimalizátorem i~pro ladicí výpisy.
+
+\subsection{Optimalizace}
+\label{sec:optimalizace}
+
+\subsubsection{Constant folding}
+
+Průchod constant folding (\texttt{ConstantFoldingPass} v~\texttt{src/ir\_optimizer.rs})
+vyhledává lokální vzory typu \texttt{Push(a) Push(b) op} a~nahrazuje je jednou
+instrukcí \texttt{LoadConst(result)}. Implementace podporuje aritmetické,
+relační i~logické operace. Pro booleovské výsledky je použita konvence \Forth{}:
+\texttt{-1} znamená pravdu a~\texttt{0} nepravdu.
+
+\subsubsection{Dead code elimination}
+
+Eliminace mrtvého kódu (\texttt{DeadCodeEliminationPass}) odstraňuje instrukce,
+které nemají vliv na výsledek výpočtu. V~aktuální implementaci se jedná zejména
+o~\texttt{Nop} a~krátké sekvence jako \texttt{Push \; Drop} nebo \texttt{Dup \; Drop},
+které vznikají jako vedlejší produkt jiných optimalizací.
+
+\subsubsection{Peephole optimalizace}
+
+Peephole optimalizace (\texttt{PeepholeOptimizationPass}) pracuje nad
+malými okny instrukcí (typicky délky 2--3). Cílem je nahradit časté
+sekvence efektivnějším ekvivalentem, případně vytvořit příležitost
+pro následné odstranění instrukcí (např. nahrazení dvojice instrukcí
+\texttt{Dup Drop} za \texttt{Nop}, který odstraní DCE).
+
+\subsubsection{Strength reduction}
+
+Strength reduction (\texttt{StrengthReductionPass}) implementuje standardní
+algebraické identity a~zjednodušení, například násobení dvěma na \texttt{Dup Add}
+nebo eliminaci neutrálních prvků (\texttt{+ 0}, \texttt{* 1}).
+
+\subsubsection{Inlining}
+
+Inlining (\texttt{FunctionInliningPass}) nahrazuje instrukci \texttt{Call} tělem
+volané funkce, pokud je funkce dostatečně malá (výchozí limit 20 instrukcí)
+a~neobsahuje skoky ani rekurzivní volání. Průchod je implementován jako
+globální optimalizace nad celým \texttt{IRProgram}, protože potřebuje přístup
+k~mapě všech funkcí.
+
+Optimalizační pipeline (\texttt{IROptimizer}) spouští průchody iterativně, dokud
+nedojde ke stabilizaci, nebo dokud není překročen maximální počet iterací
+(výchozí hodnota 10). Iterativní spouštění je důležité například proto, že
+inlining může vytvořit nové konstantní výrazy vhodné pro constant folding.
+
+\subsection{Generování cílového kódu}
+\label{sec:codegen}
+
+\subsubsection{Backend pro Rust}
+
+Generování cílového kódu pro Rust je implementováno dvěma cestami.
+První cesta (\texttt{rust-ir}) používá přímočarý generátor
+\texttt{IRRustGenerator} (\texttt{src/ir\_codegen.rs}), který převádí IR do
+samostatného spustitelného programu v~Rust. Vygenerovaný kód obsahuje strukturu
+\texttt{OptimizedForth} s~datovým zásobníkem \texttt{Vec<i32>} a~metodami,
+které implementují jednotlivá uživatelská slova jako vnořené funkce.
+
+Pro instrukce řídicího toku generátor používá jednoduchý stavový automat
+nad čítačem instrukcí (\texttt{\_\_pc}), což umožňuje reprezentovat skoky
+\texttt{Jump}/\texttt{JumpIf}/\texttt{JumpIfNot} i~bez explicitních \texttt{goto}.
+
+Druhá cesta je novější modulární framework (\texttt{src/codegen/*}), který
+odděluje překlad instrukcí (\texttt{IRTranslator}) od emitování kódu
+(\texttt{CodeEmitter}) a~od specifik cílového jazyka (\texttt{TargetLanguage}).
+V~této práci je tento framework využit především pro experimenty a~rozšiřitelnost.
+
+\subsubsection{Backend pro C}
+
+Backend pro jazyk C (\texttt{c-ir}) je implementován generátorem
+\texttt{IRCGenerator} v~\texttt{src/ir\_codegen.rs}. Vygenerovaný kód
+implementuje zásobník jako pole pevné velikosti \texttt{STACK\_SIZE} a~používá
+pomocné funkce \texttt{push}/\texttt{pop}. Tato varianta je vhodná pro jednodušší
+portaci a~snadné spuštění na systémech bez toolchainu pro Rust.
+
+Stejně jako u~Rust backendu je možné použít i~modulární variantu backendu
+(\texttt{c-modular}), která je registrována v~\texttt{codegen/registry.rs}.
+
+\subsection{REPL s JIT kompilací}
+\label{sec:repl}
+
+REPL je implementován v~\texttt{src/repl/} a~realizuje tzv. \emph{JIT-like}
+přístup: každý vstup uživatele je přeložen do Rust kódu, zkompilován do
+sdílené knihovny (\texttt{cdylib}) a~načten za běhu programu.
+
+Vstupní řetězec prochází stejnými fázemi jako kompilace souboru:
+lexing, parsing, sémantická analýza, IR lowering a~optimalizace. Následně se
+použije specializovaný generátor \texttt{ReplCodegen} (\texttt{src/repl/codegen.rs}),
+který vytvoří kód exportující funkci \texttt{\_\_repl\_entry}. Ta přijímá
+\texttt{RuntimeContext} z~knihovny \texttt{roth-runtime} a~vykoná instrukce nad
+perzistentním zásobníkem a~pamětí.
+
+Kompilace a~dynamické načítání jsou zapouzdřeny v~\texttt{LibraryLoader}
+(\texttt{src/repl/loader.rs}). Loader zapisuje vygenerovaný Rust do dočasného
+adresáře, spustí \texttt{rustc --crate-type=cdylib} a~výslednou knihovnu načte
+pomocí knihovny \texttt{libloading}. REPL si uchovává všechny načtené knihovny
+v~paměti, aby nedošlo k~uvolnění symbolů.
+
+Perzistentní stav mezi příkazy je rozdělen na:
+\begin{itemize}
+	\item \textbf{runtime kontext} (\texttt{RuntimeContext}) --- zásobník,
+	      paměť proměnných a~registry slov,
+	\item \textbf{kompilační kontext} (\texttt{CompilerContext}) --- slovník již
+	      definovaných slov v~IR a~množinu deklarovaných proměnných. Tyto
+	      informace umožňují sémantické ověření a~IR lowering s~ohledem na
+	      historii REPL.
+\end{itemize}
+
+\subsection{Standardní knihovna}
+\label{sec:stdlib}
+
+Standardní knihovna je uložena ve složce \texttt{std/} a~je psaná přímo
+v~jazyce \\Roth{}. Hlavní soubor \texttt{std/std.rt} postupně načítá jednotlivé
+moduly pomocí direktivy \texttt{INCLUDE}.
+
+Knihovna je rozdělena do tematických souborů:
+\begin{itemize}
+	\item \texttt{core.rt} --- základní konstanty a~utility,
+	\item \texttt{stack.rt} --- rozšířené zásobníkové operace,
+	\item \texttt{math.rt} --- matematické funkce,
+	\item \texttt{io.rt} --- formátovaný výstup a~I/O pomocné funkce,
+	\item \texttt{control.rt} --- rozšířené řídicí konstrukce,
+	\item \texttt{compiler.rt} --- dokumentace slov implementovaných na úrovni kompilátoru.
+\end{itemize}
+
+V~offline kompilaci je direktiva \texttt{INCLUDE} zpracována ještě před lexikální
+analýzou (funkce \texttt{preprocess\_includes} v~\texttt{src/main.rs}). Preprocesor
+rekurzivně rozbalí všechny inkluze, detekuje cykly a~vloží do výsledného zdroje
+značky ve formě komentářů, aby bylo možné zpětně dohledat původ vloženého kódu.
+
+
+%% ===================================================================
+%% KAPITOLA 5: TESTOVÁNÍ A VYHODNOCENÍ
+%% ===================================================================
+\section{Testování a vyhodnocení}
+\label{sec:testovani}
+
+\subsection{Testovací metodika}
+
+Testování kompilátoru bylo rozděleno do dvou úrovní:
+\begin{itemize}
+	\item \textbf{jednotkové testy} ověřují jednotlivé moduly (lexer, parser,
+	      sémantická analýza, IR, optimalizace a~codegen) na malých izolovaných
+	      případech,
+	\item \textbf{integrační testy} ověřují celý překladový řetězec přes
+	      veřejné CLI rozhraní a~kontrolují, že je vygenerovaný kód vytvořen
+	      a~obsahuje očekávané konstrukce.
+\end{itemize}
+
+Jednotkové testy jsou implementovány ve dvou formách:
+(1) testy přímo v modulech v~\texttt{src/} pomocí \texttt{\#[cfg(test)]} a
+(2) testy v~adresáři \texttt{tests/}, kde jsou jednotlivé části kompilátoru
+testovány přes veřejné API knihovny \texttt{roth}.
+
+Integrační testy (\texttt{tests/integration\_tests.rs}) spouštějí binární
+program přes \texttt{cargo run} a~ověřují vznik výstupu v~adresáři \texttt{.build/}.
+Tím se simuluje běžné použití kompilátoru z~příkazové řádky.
+
+Všechny testy lze spustit příkazem:
+\begin{lstlisting}[language=bash, caption={Spuštění testů}]
+cargo test
+\end{lstlisting}
+
+\subsection{Výsledky testování}
+
+Testovací sada pokrývá základní syntaktické konstrukce jazyka, práci s~datovým
+zásobníkem, překlad uživatelských definic, vybrané řídicí struktury a~optimalizační
+průchody nad IR.
+
+V~adresáři \texttt{tests/} jsou testy rozděleny do tematických souborů:
+\texttt{lexer\_tests.rs}, \texttt{parser\_tests.rs}, \texttt{analyzer\_tests.rs},
+\texttt{ir\_tests.rs}, \texttt{codegen\_tests.rs} a~\texttt{integration\_tests.rs}.
+Tyto testy společně ověřují správnost výstupů jednotlivých fází i~to, že
+generování kódu odpovídá očekávané sémantice.
+
+Při vývoji byly odhaleny a~opraveny zejména chyby související s~hranami
+tokenizace (pozice tokenů přes víceřádkový vstup, escapování řetězců) a~se
+správným zacházením s~kontextem REPL (registrace slov a~proměnných mezi vstupy).
+
+\subsection{Porovnání s existujícími implementacemi}
+
+Cílem práce není nahradit vysoce optimalizované implementace jako GForth,
+ale ověřit, že navržená architektura (IR + optimalizační průchody + více backendů)
+umožňuje generovat efektivní cílový kód a~zároveň zůstává rozšiřitelná.
+
+Ve srovnání s~tradičním \Forth{} je \\Roth{} koncipován více jako kompilátorový
+projekt: jazyková sada je záměrně omezena na konstrukce potřebné pro demonstraci
+frontendu, middle-endu i~backendů. Výhodou je možnost experimentovat s~optimalizacemi
+na explicitním mezikódu a~s~alternativními cílovými jazyky.
+
+
+%% ===================================================================
+%% KAPITOLA 6: ZÁVĚR
+%% ===================================================================
+\begin{kiconclusions}
+	Tato práce představila návrh a~implementaci kompilátoru zásobníkového jazyka
+	inspirovaného jazykem \Forth{}. Výsledkem je nástroj \\Roth{} implementovaný
+	v~jazyce Rust, který zahrnuje kompletní překladový řetězec od lexikální a~
+	syntaktické analýzy přes sémantickou kontrolu až po generování mezikódu,
+	optimalizaci a~produkci cílového kódu.
+
+	Byl navržen a~realizován zásobníkový mezikód, nad kterým běží sada
+	optimalizačních průchodů (constant folding, inlining, peephole optimalizace,
+	strength reduction a~eliminace mrtvého kódu). Implementace podporuje generování
+	kódu do jazyků Rust a~C a~obsahuje interaktivní REPL prostředí využívající
+	JIT-like kompilaci přes dynamicky načítané knihovny.
+
+	Možná budoucí rozšíření zahrnují zlepšení backendů (kompletní pokrytí všech IR
+	instrukcí, lepší práce se skoky a~smyčkami), rozšíření standardní knihovny
+	a~důkladnější měření výkonu na sadě referenčních programů.
+\end{kiconclusions}
+
+\begin{kiconclusions}[english]
+	This thesis presented the design and implementation of a stack-based language
+	inspired by Forth. The resulting tool, Roth, is implemented in Rust and
+	provides a full compilation pipeline: lexing, parsing, semantic validation,
+	IR lowering, IR-level optimizations, and target code generation.
+
+	A dedicated stack-based intermediate representation was designed and used as
+	the foundation for optimization passes such as constant folding, inlining,
+	peephole optimization, strength reduction, and dead code elimination. The
+	implementation supports generating Rust and C code and includes an interactive
+	REPL based on a JIT-like workflow using dynamically compiled and loaded
+	shared libraries.
+
+	Future work includes improving backend completeness, extending the standard
+	library, and providing more extensive performance evaluation on a benchmark
+	suite.
+\end{kiconclusions}
+
+
+%% ===================================================================
+%% PŘÍLOHY
+%% ===================================================================
+\appendix
+
+\section{Obsah elektronických dat}
+\label{sec:ObsahData}
+
+\begin{description}
+	\item[\texttt{thesis/}] \hfill \\
+	      Zdrojové soubory práce v \LaTeX{}u a výsledné PDF (\texttt{kidiplom.pdf}).
+
+	\item[\texttt{src/}] \hfill \\
+	      Zdrojové kódy kompilátoru \Roth{} v jazyce Rust (frontend, IR, optimalizace, codegen).
+
+	\item[\texttt{src/repl/}] \hfill \\
+	      Implementace REPL režimu s JIT-like kompilací.
+
+	\item[\texttt{roth-runtime/}] \hfill \\
+	      Knihovna poskytující běhový kontext (zásobník, paměť) pro REPL.
+
+	\item[\texttt{std/}] \hfill \\
+	      Standardní knihovna jazyka ve formě \Roth{} zdrojových souborů.
+
+	\item[\texttt{tests/}] \hfill \\
+	      Jednotkové a integrační testy kompilátoru.
+
+	\item[\texttt{test\_source/}] \hfill \\
+	      Ukázkové vstupy pro integrační testy (včetně očekávaných výstupů).
+
+	\item[\texttt{README.md}] \hfill \\
+	      Stručný popis projektu.
+
+	\item[\texttt{Cargo.toml}] \hfill \\
+	      Konfigurační soubor projektu pro Rust.
+
+	\item[\texttt{.build/}] \hfill \\
+	      Výstupní adresář generovaného kódu (vytváří se při běhu kompilátoru).
+\end{description}
+
+
+\section{Uživatelská dokumentace}
+\label{sec:dokumentace}
+
+Tato příloha popisuje použití kompilátoru \Roth{} z příkazové řádky a základní
+práci v režimu REPL.
+
+\subsection{Požadavky}
+
+Pro sestavení projektu je potřeba nainstalovaný Rust toolchain.
+Pro spuštění některých režimů jsou dále potřeba:
+\begin{itemize}
+	\item \texttt{rustc} v \texttt{PATH} (používá se při \texttt{--run} a v režimu REPL),
+	\item \texttt{gcc} (používá se při \texttt{--run} s backendem pro C).
+\end{itemize}
+
+\subsection{Sestavení a testy}
+
+Projekt lze sestavit a otestovat standardními příkazy:
+\begin{lstlisting}[language=bash, caption={Sestavení a testy}]
+cargo build
+cargo test
+\end{lstlisting}
+
+\subsection{Kompilace souboru}
+
+Kompilace souboru probíhá spuštěním binárky \texttt{roth} se jménem vstupního
+souboru. Výstupní kód je uložen do adresáře \texttt{.build/}.
+
+\begin{lstlisting}[language=bash, caption={Kompilace souboru}]
+cargo run -- path/to/program.fs
+\end{lstlisting}
+
+Volba backendu:
+\begin{lstlisting}[language=bash, caption={Volba backendu}]
+cargo run -- path/to/program.fs --backend rust-ir
+cargo run -- path/to/program.fs --backend c-ir
+\end{lstlisting}
+
+Volitelně lze nastavit jméno výstupního souboru (stále bude umístěn do
+\texttt{.build/}):
+\begin{lstlisting}[language=bash, caption={Vlastní název výstupu}]
+cargo run -- path/to/program.fs -o out.rs
+\end{lstlisting}
+
+\paragraph{Režim \texttt{--run}.}
+Při použití \texttt{--run} kompilátor kromě vygenerování kódu automaticky spustí
+překlad cílového kódu a výsledný program vykoná. Pro Rust backend se používá
+\texttt{rustc -O}, pro C backend \texttt{gcc -O2}.
+\begin{lstlisting}[language=bash, caption={Kompilace a spuštění}]
+cargo run -- path/to/program.fs --backend rust-ir --run
+cargo run -- path/to/program.fs --backend c-ir --run
+\end{lstlisting}
+
+\subsection{Ladění výpisů}
+
+Volba \texttt{--debug} řídí množství ladicích informací:
+\begin{itemize}
+	\item \texttt{0} --- bez výpisů,
+	\item \texttt{1} --- vypíše vygenerovaný cílový kód,
+	\item \texttt{2} --- vypíše tokeny, AST, IR a statistiky optimalizací,
+	\item \texttt{3} --- navíc vypíše barevně zvýrazněný cílový kód (pokud je dostupný highlighter).
+\end{itemize}
+
+Volba \texttt{--no-color} vypne barevné zvýraznění.
+
+\subsection{REPL režim}
+
+REPL se spustí bez argumentu vstupního souboru, nebo pomocí \texttt{-i/--interactive}:
+\begin{lstlisting}[language=bash, caption={Spuštění REPL}]
+cargo run
+cargo run -- -i
+\end{lstlisting}
+
+V REPL lze psát běžné \Roth{} příkazy (např. \texttt{2 3 + .}) a definovat slova
+pomocí \texttt{: NAME ... ;}. REPL navíc obsahuje příkazy začínající dvojtečkou
+bez mezery (např. \texttt{:help}).
+
+\begin{lstlisting}[language=bash, caption={Základní REPL příkazy}]
+:help      (napoveda)
+:stack     (vypis zasobniku)
+:words     (seznam uzivatelskych slov)
+:vars      (seznam promennych)
+:clear     (vypradneni zasobniku)
+:reset     (reset stavu)
+:debug 2   (nastaveni debug urovne)
+:quit      (ukonceni)
+\end{lstlisting}
+
+Konstrukce \texttt{INCLUDE} je podporována pouze při kompilaci ze souboru
+(je implementována jako preprocesor v \texttt{src/main.rs}); v režimu REPL se
+nevyhodnocuje.
+
+
+\section{Gramatika jazyka}
+\label{sec:gramatika}
+
+Tato sekce popisuje implementovanou syntaxi jazyka \Roth{} ve zjednodušené EBNF.
+Jazyk je tokenizován na základě bílých znaků a několika speciálních znaků
+(\texttt{:}, \texttt{;}, \texttt{(}, \texttt{)}, \texttt{"}).
+
+\subsection{Lexikální pravidla}
+
+\begin{description}
+	\item[Whitespace] mezery, tabulátory a konce řádků oddělují tokeny.
+	\item[Comment] \texttt{(} \emph{libovolné znaky bez \texttt{)}} \texttt{)}. Komentáře jsou ignorovány parserem.
+	\item[Number] dekadický literál \texttt{i32}. Pokud převod selže (např. přetečení), token je brán jako slovo.
+	\item[Word] posloupnost znaků do prvního bílého znaku, \texttt{(}, \texttt{)}, \texttt{"}. Slova jsou case-insensitive (lexer je normalizuje na velká písmena).
+	\item[String] buď \texttt{"..."} (s podporou escape sekvencí \texttt{\\n}, \texttt{\\t}, \texttt{\\r}, \texttt{\\"}, \texttt{\\\\}), nebo \texttt{S" ..."} (bez escape sekvencí; volitelná mezera po \texttt{S"}).
+\end{description}
+
+\subsection{Syntaktická pravidla (EBNF)}
+
+\begin{lstlisting}[language=Forth, caption={EBNF gramatika}]
+program        ::= { statement } ;
+
+statement      ::= number
+                | string
+                | word
+                | definition
+                | variable_decl
+                | comment ;
+
+definition     ::= ':' word { stmt_in_def } ';' ;
+stmt_in_def    ::= number | string | word | variable_decl | comment ;
+                // vnorene definice nejsou dovoleny
+
+variable_decl  ::= 'VARIABLE' word ;
+
+number         ::= [ '-' ] digit { digit } ;
+
+string         ::= '"' { char | escape } '"'
+                | 'S"' [ ' ' ] { char } '"' ;
+
+comment        ::= '(' { char } ')' ;
+
+word           ::= token ;
+\end{lstlisting}
+
+Při kompilaci ze souboru je před lexikální analýzou proveden preprocesing
+direktivy \texttt{INCLUDE}, která rekurzivně vkládá obsah souborů do zdrojového
+textu. Název souboru může být uveden v uvozovkách nebo bez nich a cesta je
+vyhodnocena relativně k aktuálnímu souboru (a případně k pracovnímu adresáři).
+
+
+%% ===================================================================
+%% BIBLIOGRAFIE
+%% ===================================================================
+\nocite{*}
+\printbibliography
+
+\end{document}

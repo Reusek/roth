@@ -1,0 +1,292 @@
+%% ===================================================================
+%% SEKCE 2.1: JAZYK FORTH
+%% ===================================================================
+
+\subsection{Jazyk Forth}
+\label{sec:forth}
+
+Jazyk \Forth{} představuje jedinečnou kategorii programovacích jazyků,
+která se fundamentálně odlišuje od většiny běžně používaných jazyků.
+Jeho minimalistický design, zásobníková architektura a~interaktivní
+povaha z~něj činí ideální základ pro studium principů kompilace
+a~návrhu programovacích jazyků.
+
+
+\subsubsection{Historie a filozofie}
+\label{sec:forth-historie}
+
+Jazyk \Forth{} byl vytvořen Charlesem H. Moorem na přelomu šedesátých
+a~sedmdesátých let 20. století. Moore původně vyvíjel tento jazyk
+pro řízení radioteleskopů na observatoři Kitt Peak v~Arizoně, kde
+potřeboval jazyk, který by umožnil interaktivní vývoj a~ladění
+v~prostředí s~omezenými výpočetními prostředky \autocite{moore1974}.
+
+Název \Forth{} vznikl jako zkratka pro \emph{fourth generation language}
+(jazyk čtvrté generace), přičemž kvůli omezením souborového systému
+IBM 1130, který povoloval pouze pětiznaková jména souborů, byl název
+zkrácen na FORTH. Moore považoval svůj jazyk za výrazný krok kupředu
+oproti tehdejším jazykům třetí generace, jako byly FORTRAN a~COBOL.
+
+Filozofie jazyka \Forth{} je založena na několika klíčových principech,
+které Leo Brodie shrnul ve své vlivné knize \emph{Thinking Forth}
+\autocite{brodie2004}:
+
+\paragraph{Jednoduchost a minimalismus.}
+\Forth{} upřednostňuje jednoduchou implementaci před složitou syntaxí.
+Základní jádro jazyka může být implementováno v~řádově stovkách řádků
+kódu, což umožňuje jeho nasazení i~na velmi omezených platformách.
+Tato jednoduchost není náhodná --- Moore věřil, že složitost je
+nepřítelem spolehlivosti a~údržby.
+
+\paragraph{Kompozice malých částí.}
+Programy ve \Forth{}u jsou budovány z~malých, opakovaně použitelných
+jednotek nazývaných \emph{slova} (words). Každé slovo by mělo řešit
+jeden konkrétní problém a~jeho délka by neměla přesáhnout zhruba
+jeden řádek. Tento přístup předznamenal moderní principy jako
+\emph{Unix philosophy} a~mikroslužby.
+
+\paragraph{Interaktivita a okamžitá zpětná vazba.}
+\Forth{} byl od počátku navržen jako interaktivní jazyk. Programátor
+může okamžitě testovat jednotlivá slova a~pozorovat jejich efekt
+na zásobník. Tato vlastnost činí \Forth{} ideálním nástrojem pro
+explorativní programování a~ladění v~reálném čase.
+
+\paragraph{Programátor jako architekt.}
+Na rozdíl od jazyků, které definují pevnou strukturu programů,
+\Forth{} poskytuje programátorovi nástroje pro vytvoření vlastního
+jazyka specifického pro danou doménu. Každý \Forth{} program je
+vlastně rozšířením jazyka samotného.
+
+Historicky našel \Forth{} široké uplatnění v~oblastech, kde jsou
+kritické efektivita a~přímý přístup k~hardware:
+
+\begin{itemize}
+	\item \textbf{Embedded systémy} --- díky malým nárokům na paměť
+	      a~možnosti přímé manipulace s~registry.
+	\item \textbf{Kosmický průmysl} --- NASA použila \Forth{} v~řadě
+	      vesmírných misí včetně sondy Philae.
+	\item \textbf{Inicializace systémů} --- standard IEEE 1275 (Open
+	      Firmware) používá \Forth{} pro bootovací firmware
+	      \autocite{open-firmware}.
+	\item \textbf{Radioastronomie} --- původní doména jazyka, kde se
+	      používá dodnes.
+\end{itemize}
+
+
+\subsubsection{Zásobníková architektura}
+\label{sec:forth-zasobnik}
+
+Fundamentálním rysem jazyka \Forth{} je jeho zásobníková architektura.
+Na rozdíl od většiny programovacích jazyků, které používají pojmenované
+proměnné pro předávání dat mezi operacemi, \Forth{} využívá implicitní
+datový zásobník \autocite{koopman1989}.
+
+\paragraph{Datový zásobník.}
+Datový zásobník (data stack, také parameter stack) je primární
+strukturou pro předávání hodnot mezi slovy. Operace odebírají
+své operandy z~vrcholu zásobníku a~ukládají výsledky zpět na zásobník.
+Tento přístup eliminuje potřebu explicitního pojmenování mezivýsledků.
+
+Uvažujme výpočet aritmetického výrazu \texttt{(3 + 4) * 5}.
+V~jazyce \Forth{} by tento výpočet vypadal následovně:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+3 4 + 5 *
+\end{lstlisting}
+
+Průběh výpočtu demonstruje tabulka~\ref{tab:stack-trace}.
+
+\begin{table}[ht]
+	\centering
+	\caption{Průběh výpočtu výrazu na zásobníku}
+	\label{tab:stack-trace}
+	\begin{tabular}{lll}
+		\toprule
+		\textbf{Operace} & \textbf{Zásobník} & \textbf{Popis}              \\
+		\midrule
+		\texttt{3}       & \texttt{3}        & Uložení konstanty 3         \\
+		\texttt{4}       & \texttt{3 4}      & Uložení konstanty 4         \\
+		\texttt{+}       & \texttt{7}        & Součet dvou vrchních hodnot \\
+		\texttt{5}       & \texttt{7 5}      & Uložení konstanty 5         \\
+		\texttt{*}       & \texttt{35}       & Součin dvou vrchních hodnot \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Návratový zásobník.}
+Kromě datového zásobníku používá \Forth{} také návratový zásobník
+(return stack), který primárně slouží pro uložení návratových adres
+při volání slov. Programátor má však přístup i~k~tomuto zásobníku
+prostřednictvím slov \texttt{>R} (přesun z~datového na návratový zásobník),
+\texttt{R>} (opačný směr) a~\texttt{R@} (kopie vrcholu návratového
+zásobníku). Tato vlastnost umožňuje dočasné \uv{odložení} hodnot
+z~datového zásobníku.
+
+\paragraph{Reverzní polská notace.}
+Zásobníková architektura přirozeně vede k~použití postfixové neboli
+reverzní polské notace (Reverse Polish Notation, RPN). V~této notaci
+se operátor zapisuje za své operandy, nikoliv mezi ně. RPN má několik
+výhod:
+
+\begin{itemize}
+	\item Nevyžaduje závorky pro určení priority operací.
+	\item Odpovídá přirozenému pořadí vyhodnocování na zásobníku.
+	\item Zjednodušuje implementaci parseru a~interpretru.
+	\item Vede ke kompaktnějšímu zápisu složitých výrazů.
+\end{itemize}
+
+\paragraph{Stack effects.}
+Konvence ve \Forth{}u vyžaduje dokumentovat efekt každého slova
+na zásobník pomocí notace zvané \emph{stack effect comment}.
+Tato notace má tvar \texttt{( before -- after )}, kde \texttt{before}
+popisuje hodnoty očekávané na vstupu a~\texttt{after} hodnoty
+zanechané na výstupu. Například:
+
+\begin{itemize}
+	\item \texttt{+ ( n1 n2 -- n3 )} --- sečte dvě čísla
+	\item \texttt{DUP ( n -- n n )} --- zduplikuje vrchol zásobníku
+	\item \texttt{SWAP ( n1 n2 -- n2 n1 )} --- prohodí dva vrchní prvky
+	\item \texttt{DROP ( n -- )} --- odstraní vrchol zásobníku
+\end{itemize}
+
+Tyto anotace jsou klíčové pro správné použití slov, neboť při
+nesprávném počtu hodnot na zásobníku dochází k~chybám za běhu.
+
+
+\subsubsection{Syntaxe a sémantika}
+\label{sec:forth-syntax}
+
+Syntaxe jazyka \Forth{} je extrémně minimalistická. Zdrojový kód
+se skládá ze \emph{slov} oddělených bílými znaky. Neexistují
+žádné speciální oddělovače příkazů, závorky pro volání funkcí
+ani klíčová slova v~tradičním smyslu \autocite{brodie1981}.
+
+\paragraph{Slova.}
+Základní jednotkou programu ve \Forth{}u je \emph{slovo} (word).
+Slovo je sekvence znaků oddělená bílými znaky, která reprezentuje
+buď vestavěnou operaci (primitive), uživatelem definovanou funkci,
+nebo číselnou konstantu.
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+( Definice noveho slova KVADRAT )
+: KVADRAT ( n -- n^2 )  DUP * ;
+
+( Pouziti )
+5 KVADRAT .   ( Vypise: 25 )
+\end{lstlisting}
+
+Definice nového slova začíná dvojtečkou (\texttt{:}), následuje
+název slova, tělo definice a~ukončení středníkem (\texttt{;}).
+Komentáře se uvádějí v~kulatých závorkách.
+
+\paragraph{Čísla.}
+Číselné konstanty jsou rozpoznány lexikálním analyzátorem a~při
+zpracování jsou automaticky uloženy na zásobník. \Forth{} tradičně
+podporuje celočíselnou aritmetiku, přičemž moderní implementace
+často přidávají podporu pro čísla s~plovoucí řádovou čárkou.
+
+\paragraph{Řídicí struktury.}
+\Forth{} poskytuje základní řídicí struktury pro větvení a~cykly:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+( Podminka IF-ELSE-THEN )
+: SIGNUM ( n -- -1|0|1 )
+  DUP 0 < IF DROP -1 ELSE
+  DUP 0 > IF DROP 1 ELSE DROP 0 THEN THEN ;
+
+( Pocitany cyklus DO-LOOP )
+: VYPIS-5 ( -- )  5 0 DO I . LOOP ;
+
+( Cyklus s podminkou BEGIN-WHILE-REPEAT )
+: COUNTDOWN ( n -- )
+  BEGIN DUP 0 > WHILE DUP . 1 - REPEAT DROP ;
+\end{lstlisting}
+
+Důležité je si povšimnout, že \texttt{IF} ve \Forth{}u je postfixové ---
+podmínka je vyhodnocena před klíčovým slovem \texttt{IF}, které
+pak odebere hodnotu ze zásobníku a~rozhodne o~dalším průběhu.
+
+\paragraph{Proměnné a paměť.}
+Ačkoliv \Forth{} primárně pracuje se zásobníkem, poskytuje také
+mechanismy pro práci s~pojmenovanou pamětí:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+VARIABLE POCITADLO      ( Deklarace promenne )
+0 POCITADLO !           ( Inicializace na 0 )
+POCITADLO @             ( Cteni hodnoty )
+POCITADLO @ 1+ POCITADLO !  ( Inkrementace )
+\end{lstlisting}
+
+Operátor \texttt{!} (store) ukládá hodnotu na adresu, operátor
+\texttt{@} (fetch) čte hodnotu z~adresy. Název proměnné vrací
+její adresu, nikoliv hodnotu.
+
+
+\subsubsection{Existující implementace}
+\label{sec:forth-implementace}
+
+Za více než padesát let existence jazyka \Forth{} vzniklo mnoho
+jeho implementací, od minimalistických embedded verzí po plnohodnotné
+vývojové systémy.
+
+\paragraph{Gforth.}
+Gforth (GNU Forth) je referenční implementací standardu
+Forth 2012 \autocite{gforth}. Je vyvíjen pod záštitou projektu GNU
+a~představuje nejpoužívanější open-source implementaci \Forth{}u.
+Gforth je napsán v~jazycích C a~\Forth{} a~je dostupný pro většinu
+operačních systémů. Mezi jeho hlavní přednosti patří:
+
+\begin{itemize}
+	\item Plná kompatibilita se standardem Forth 2012.
+	\item Rozsáhlá dokumentace a~aktivní komunita.
+	\item Efektivní interpretace pomocí techniky \emph{threaded code}
+	      \autocite{ertl2002}.
+	\item Podpora pro čísla s~plovoucí řádovou čárkou a~dynamickou
+	      alokaci paměti.
+\end{itemize}
+
+\paragraph{Historické a specializované implementace.}
+Mezi další významné implementace patří:
+
+\begin{itemize}
+	\item \textbf{fig-Forth} --- historická implementace od Forth Interest
+	      Group, která pomohla rozšířit jazyk na osmibitové počítače.
+	\item \textbf{SwiftForth} --- komerční implementace od společnosti
+	      Forth, Inc., optimalizovaná pro výkon.
+	\item \textbf{Mecrisp} --- moderní implementace zaměřená na
+	      mikrokontroléry ARM Cortex-M.
+	\item \textbf{Factor} --- moderní zásobníkový jazyk inspirovaný
+	      \Forth{}em, rozšířený o~objektově orientované programování,
+	      garbage collection a~bohatou standardní knihovnu.
+\end{itemize}
+
+\paragraph{Standard Forth 2012.}
+Jazyk \Forth{} byl standardizován americkým institutem ANSI v~roce 1994
+(ANSI X3.215-1994) a~později rozšířen komunitním standardem Forth 2012
+\autocite{forth-standard}. Standard definuje základní slovníkové sady
+(word sets):
+
+\begin{description}
+	\item[Core] --- základní slova nezbytná pro každou implementaci
+	\item[Core Extensions] --- užitečná rozšíření základní sady
+	\item[Block] --- práce s~blokovým souborovým systémem
+	\item[Double-Number] --- podpora pro dvojnásobnou přesnost
+	\item[Exception] --- mechanismus pro zpracování výjimek
+	\item[Facility] --- interakce s~uživatelem a~systémem
+	\item[File] --- práce se soubory
+	\item[Floating-Point] --- čísla s~plovoucí řádovou čárkou
+	\item[Locals] --- lokální proměnné
+	\item[Memory-Allocation] --- dynamická alokace paměti
+	\item[Programming-Tools] --- ladící nástroje
+	\item[Search-Order] --- správa slovníků
+	\item[String] --- práce s~řetězci
+\end{description}
+
+\paragraph{Vztah jazyka Roth k~existujícím implementacím.}
+Jazyk \Roth{}, jehož implementace je předmětem této práce, se inspiruje
+základními koncepty jazyka \Forth{}, ale záměrně se nedrží striktně
+standardu. Cílem je vytvořit moderní zásobníkový jazyk, který zachovává
+filozofii a~eleganci \Forth{}u, ale využívá moderní techniky kompilace
+a~optimalizace. Kompilátor \Roth{} generuje nativní kód prostřednictvím
+backendů pro jazyky Rust a~C, což jej odlišuje od interpretovaných
+implementací jako je Gforth.

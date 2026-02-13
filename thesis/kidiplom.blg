@@ -1,0 +1,14 @@
+[0] Config.pm:308> INFO - This is Biber 2.21 (beta)
+[0] Config.pm:311> INFO - Logfile is 'kidiplom.blg'
+[50] biber:341> INFO - === út úno 10, 2026, 01:06:56
+[68] Biber.pm:420> INFO - Reading 'kidiplom.bcf'
+[112] Biber.pm:991> INFO - Using all citekeys in bib section 0
+[123] Biber.pm:4463> INFO - Processing section 0
+[134] Biber.pm:4654> INFO - Looking for bibtex file 'bibliografie.bib' for section 0
+[135] bibtex.pm:1713> INFO - LaTeX decoding ...
+[142] bibtex.pm:1519> INFO - Found BibTeX data source 'bibliografie.bib'
+[224] UCollate.pm:68> INFO - Overriding locale 'cs_CZ' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[224] UCollate.pm:68> INFO - Overriding locale 'cs_CZ' defaults 'variable = shifted' with 'variable = non-ignorable'
+[224] Biber.pm:4283> INFO - Sorting list 'none/global//global/global/global' of type 'entry' with template 'none' and locale 'cs_CZ'
+[235] bbl.pm:676> INFO - Writing 'kidiplom.bbl' with encoding 'UTF-8'
+[238] bbl.pm:779> INFO - Output to kidiplom.bbl

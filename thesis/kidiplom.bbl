@@ -1,0 +1,464 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global/global}
+    \entry{moore1974}{book}{}{}
+      \name{author}{2}{}{%
+        {{hash=e7b49a0da72c1f496bb6b78e59d4fe43}{%
+           family={Moore},
+           familyi={M\bibinitperiod},
+           given={Charles\bibnamedelima H.},
+           giveni={C\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=55984d4e7d620330422191744d37d775}{%
+           family={Leach},
+           familyi={L\bibinitperiod},
+           given={Geoffrey\bibnamedelima C.},
+           giveni={G\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+      }
+      \strng{namehash}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{fullhash}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{fullhashraw}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{bibnamehash}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{authorbibnamehash}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{authornamehash}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{authorfullhash}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \strng{authorfullhashraw}{a6858ba0b0beed5125fe2e5d29d284b3}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Astronomy and Astrophysics Supplement}
+      \field{langid}{english}
+      \field{title}{FORTH: A New Way to Program Mini-computers}
+      \field{volume}{15}
+      \field{year}{1974}
+      \field{pages}{497\bibrangedash 511}
+      \range{pages}{15}
+    \endentry
+    \entry{brodie2004}{book}{}{}
+      \name{author}{1}{}{%
+        {{hash=c973c0257eda0f8792252f3f295f620c}{%
+           family={Brodie},
+           familyi={B\bibinitperiod},
+           given={Leo},
+           giveni={L\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {San Mateo, California}%
+      }
+      \list{publisher}{1}{%
+        {Punchy Publishing}%
+      }
+      \strng{namehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{fullhash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{fullhashraw}{c973c0257eda0f8792252f3f295f620c}
+      \strng{bibnamehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authorbibnamehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authornamehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authorfullhash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authorfullhashraw}{c973c0257eda0f8792252f3f295f620c}
+      \field{extraname}{1}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{Anniversary}
+      \field{langid}{english}
+      \field{note}{Originally published 1984}
+      \field{subtitle}{A Language and Philosophy for Solving Problems}
+      \field{title}{Thinking Forth}
+      \field{year}{2004}
+    \endentry
+    \entry{open-firmware}{online}{}{}
+      \name{author}{1}{}{%
+        {{hash=472abfae8142fdb6f39d081303e8af85}{%
+           family={{IEEE}},
+           familyi={I\bibinitperiod}}}%
+      }
+      \strng{namehash}{472abfae8142fdb6f39d081303e8af85}
+      \strng{fullhash}{472abfae8142fdb6f39d081303e8af85}
+      \strng{fullhashraw}{472abfae8142fdb6f39d081303e8af85}
+      \strng{bibnamehash}{472abfae8142fdb6f39d081303e8af85}
+      \strng{authorbibnamehash}{472abfae8142fdb6f39d081303e8af85}
+      \strng{authornamehash}{472abfae8142fdb6f39d081303e8af85}
+      \strng{authorfullhash}{472abfae8142fdb6f39d081303e8af85}
+      \strng{authorfullhashraw}{472abfae8142fdb6f39d081303e8af85}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{langid}{english}
+      \field{title}{IEEE 1275-1994 Standard for Boot (Initialization Configuration) Firmware}
+      \field{urlday}{15}
+      \field{urlmonth}{1}
+      \field{urlyear}{2026}
+      \field{year}{1994}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://standards.ieee.org/standard/1275-1994.html
+      \endverb
+      \verb{url}
+      \verb https://standards.ieee.org/standard/1275-1994.html
+      \endverb
+    \endentry
+    \entry{koopman1989}{article}{}{}
+      \name{author}{1}{}{%
+        {{hash=236d018826974f68c1d5bf808e767b80}{%
+           family={Koopman},
+           familyi={K\bibinitperiod},
+           given={Philip\bibnamedelima J.},
+           giveni={P\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Chichester, England}%
+      }
+      \list{publisher}{1}{%
+        {Ellis Horwood Limited}%
+      }
+      \strng{namehash}{236d018826974f68c1d5bf808e767b80}
+      \strng{fullhash}{236d018826974f68c1d5bf808e767b80}
+      \strng{fullhashraw}{236d018826974f68c1d5bf808e767b80}
+      \strng{bibnamehash}{236d018826974f68c1d5bf808e767b80}
+      \strng{authorbibnamehash}{236d018826974f68c1d5bf808e767b80}
+      \strng{authornamehash}{236d018826974f68c1d5bf808e767b80}
+      \strng{authorfullhash}{236d018826974f68c1d5bf808e767b80}
+      \strng{authorfullhashraw}{236d018826974f68c1d5bf808e767b80}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{isbn}{0-7458-0418-7}
+      \field{journaltitle}{Ellis Horwood series in computers and their applications}
+      \field{langid}{english}
+      \field{title}{Stack Computers: The New Wave}
+      \field{year}{1989}
+    \endentry
+    \entry{brodie1981}{book}{}{}
+      \name{author}{1}{}{%
+        {{hash=c973c0257eda0f8792252f3f295f620c}{%
+           family={Brodie},
+           familyi={B\bibinitperiod},
+           given={Leo},
+           giveni={L\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Englewood Cliffs, NJ}%
+      }
+      \list{publisher}{1}{%
+        {Prentice-Hall}%
+      }
+      \strng{namehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{fullhash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{fullhashraw}{c973c0257eda0f8792252f3f295f620c}
+      \strng{bibnamehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authorbibnamehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authornamehash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authorfullhash}{c973c0257eda0f8792252f3f295f620c}
+      \strng{authorfullhashraw}{c973c0257eda0f8792252f3f295f620c}
+      \field{extraname}{2}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{isbn}{0-13-843079-9}
+      \field{langid}{english}
+      \field{subtitle}{An Introduction to the FORTH Language and Operating System for Beginners and Professionals}
+      \field{title}{Starting Forth}
+      \field{year}{1981}
+    \endentry
+    \entry{gforth}{online}{}{}
+      \name{author}{3}{}{%
+        {{hash=79f09578112722edf31b6df0b2457894}{%
+           family={Ertl},
+           familyi={E\bibinitperiod},
+           given={M.\bibnamedelimi Anton},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=bf4701b92055e98445e6afe4de956b44}{%
+           family={Pirker},
+           familyi={P\bibinitperiod},
+           given={Bernd},
+           giveni={B\bibinitperiod}}}%
+        {{hash=3c5843659365f6b136433b6b30f20afb}{%
+           family={Gregg},
+           familyi={G\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod}}}%
+      }
+      \strng{namehash}{08efa875897a120b8cb9840dff251e64}
+      \strng{fullhash}{08efa875897a120b8cb9840dff251e64}
+      \strng{fullhashraw}{08efa875897a120b8cb9840dff251e64}
+      \strng{bibnamehash}{08efa875897a120b8cb9840dff251e64}
+      \strng{authorbibnamehash}{08efa875897a120b8cb9840dff251e64}
+      \strng{authornamehash}{08efa875897a120b8cb9840dff251e64}
+      \strng{authorfullhash}{08efa875897a120b8cb9840dff251e64}
+      \strng{authorfullhashraw}{08efa875897a120b8cb9840dff251e64}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{langid}{english}
+      \field{title}{Gforth Manual}
+      \field{urlday}{15}
+      \field{urlmonth}{1}
+      \field{urlyear}{2026}
+      \field{year}{2022}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://gforth.org/manual/
+      \endverb
+      \verb{url}
+      \verb https://gforth.org/manual/
+      \endverb
+    \endentry
+    \entry{ertl2002}{inproceedings}{}{}
+      \name{author}{2}{}{%
+        {{hash=79f09578112722edf31b6df0b2457894}{%
+           family={Ertl},
+           familyi={E\bibinitperiod},
+           given={M.\bibnamedelimi Anton},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=3c5843659365f6b136433b6b30f20afb}{%
+           family={Gregg},
+           familyi={G\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod}}}%
+      }
+      \strng{namehash}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{fullhash}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{fullhashraw}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{bibnamehash}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{authorbibnamehash}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{authornamehash}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{authorfullhash}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \strng{authorfullhashraw}{524dd4ab37fdf9591d6537b4e14a7fb4}
+      \field{sortinit}{7}
+      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Journal of Instruction-Level Parallelism}
+      \field{langid}{english}
+      \field{title}{The Structure and Performance of Efficient Interpreters}
+      \field{volume}{5}
+      \field{year}{2003}
+      \field{pages}{1\bibrangedash 25}
+      \range{pages}{25}
+    \endentry
+    \entry{forth-standard}{online}{}{}
+      \name{author}{1}{}{%
+        {{hash=aa520fc399902ab1c4070176059d6f17}{%
+           family={{Forth 200x Standardisation Committee}},
+           familyi={F\bibinitperiod}}}%
+      }
+      \strng{namehash}{aa520fc399902ab1c4070176059d6f17}
+      \strng{fullhash}{aa520fc399902ab1c4070176059d6f17}
+      \strng{fullhashraw}{aa520fc399902ab1c4070176059d6f17}
+      \strng{bibnamehash}{aa520fc399902ab1c4070176059d6f17}
+      \strng{authorbibnamehash}{aa520fc399902ab1c4070176059d6f17}
+      \strng{authornamehash}{aa520fc399902ab1c4070176059d6f17}
+      \strng{authorfullhash}{aa520fc399902ab1c4070176059d6f17}
+      \strng{authorfullhashraw}{aa520fc399902ab1c4070176059d6f17}
+      \field{sortinit}{8}
+      \field{sortinithash}{a231b008ebf0ecbe0b4d96dcc159445f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{langid}{english}
+      \field{title}{Forth 2012 Standard}
+      \field{urlday}{15}
+      \field{urlmonth}{1}
+      \field{urlyear}{2026}
+      \field{year}{2014}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://forth-standard.org/
+      \endverb
+      \verb{url}
+      \verb https://forth-standard.org/
+      \endverb
+    \endentry
+    \entry{aho2006}{book}{}{}
+      \name{author}{4}{}{%
+        {{hash=87e9142329f09390b038692270dc2168}{%
+           family={Aho},
+           familyi={A\bibinitperiod},
+           given={Alfred\bibnamedelima V.},
+           giveni={A\bibinitperiod\bibinitdelim V\bibinitperiod}}}%
+        {{hash=2935cefbbdea2e46ed9635bd5cf1db28}{%
+           family={Lam},
+           familyi={L\bibinitperiod},
+           given={Monica\bibnamedelima S.},
+           giveni={M\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=b0e677112f976b0ff780553fcb888351}{%
+           family={Sethi},
+           familyi={S\bibinitperiod},
+           given={Ravi},
+           giveni={R\bibinitperiod}}}%
+        {{hash=cafe1d770c56825ebccdb81e9f7c9b3b}{%
+           family={Ullman},
+           familyi={U\bibinitperiod},
+           given={Jeffrey\bibnamedelima D.},
+           giveni={J\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Boston}%
+      }
+      \list{publisher}{1}{%
+        {Addison-Wesley}%
+      }
+      \strng{namehash}{b955b20997f1b0d8317cbada66b20151}
+      \strng{fullhash}{b955b20997f1b0d8317cbada66b20151}
+      \strng{fullhashraw}{b955b20997f1b0d8317cbada66b20151}
+      \strng{bibnamehash}{b955b20997f1b0d8317cbada66b20151}
+      \strng{authorbibnamehash}{b955b20997f1b0d8317cbada66b20151}
+      \strng{authornamehash}{b955b20997f1b0d8317cbada66b20151}
+      \strng{authorfullhash}{b955b20997f1b0d8317cbada66b20151}
+      \strng{authorfullhashraw}{b955b20997f1b0d8317cbada66b20151}
+      \field{sortinit}{9}
+      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{2}
+      \field{isbn}{0-321-48681-1}
+      \field{langid}{english}
+      \field{title}{Compilers: Principles, Techniques, and Tools}
+      \field{year}{2006}
+    \endentry
+    \entry{klabnik2023}{book}{}{}
+      \name{author}{2}{}{%
+        {{hash=a41f7649d631481ec7b8c9984f13ca74}{%
+           family={Klabnik},
+           familyi={K\bibinitperiod},
+           given={Steve},
+           giveni={S\bibinitperiod}}}%
+        {{hash=dddb7b905682bcd4ef905d1f964c7ae8}{%
+           family={Nichols},
+           familyi={N\bibinitperiod},
+           given={Carol},
+           giveni={C\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {San Francisco}%
+      }
+      \list{publisher}{1}{%
+        {No Starch Press}%
+      }
+      \strng{namehash}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{fullhash}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{fullhashraw}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{bibnamehash}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{authorbibnamehash}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{authornamehash}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{authorfullhash}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \strng{authorfullhashraw}{e2d6cc0cf49d363084c5ab92add7b56f}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{2}
+      \field{isbn}{978-1-7185-0310-6}
+      \field{langid}{english}
+      \field{title}{The Rust Programming Language}
+      \field{year}{2023}
+      \true{nocite}
+    \endentry
+    \entry{rust-reference}{online}{}{}
+      \name{author}{1}{}{%
+        {{hash=f0d5fb5b87cc52e92b8ca896555849a5}{%
+           family={{The Rust Project Developers}},
+           familyi={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{fullhash}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{fullhashraw}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{bibnamehash}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{authorbibnamehash}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{authornamehash}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{authorfullhash}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \strng{authorfullhashraw}{f0d5fb5b87cc52e92b8ca896555849a5}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{langid}{english}
+      \field{title}{The Rust Reference}
+      \field{urlday}{15}
+      \field{urlmonth}{1}
+      \field{urlyear}{2026}
+      \field{year}{2024}
+      \field{urldateera}{ce}
+      \true{nocite}
+      \verb{urlraw}
+      \verb https://doc.rust-lang.org/reference/
+      \endverb
+      \verb{url}
+      \verb https://doc.rust-lang.org/reference/
+      \endverb
+    \endentry
+    \entry{jung2017}{inproceedings}{}{}
+      \name{author}{4}{}{%
+        {{hash=b941e8725b8fd9992bdee2980fefad07}{%
+           family={Jung},
+           familyi={J\bibinitperiod},
+           given={Ralf},
+           giveni={R\bibinitperiod}}}%
+        {{hash=8e83401fbc728aa21426362b4c7c2e50}{%
+           family={Jourdan},
+           familyi={J\bibinitperiod},
+           given={Jacques-Henri},
+           giveni={J\bibinithyphendelim H\bibinitperiod}}}%
+        {{hash=ae78958ef1554bb4ac2a39c659756993}{%
+           family={Krebbers},
+           familyi={K\bibinitperiod},
+           given={Robbert},
+           giveni={R\bibinitperiod}}}%
+        {{hash=3c61a075f82133ed00b1cf07a5b5c194}{%
+           family={Dreyer},
+           familyi={D\bibinitperiod},
+           given={Derek},
+           giveni={D\bibinitperiod}}}%
+      }
+      \strng{namehash}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{fullhash}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{fullhashraw}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{bibnamehash}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{authorbibnamehash}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{authornamehash}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{authorfullhash}{b0ad20be66868d859da17b5f0b49f72a}
+      \strng{authorfullhashraw}{b0ad20be66868d859da17b5f0b49f72a}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the ACM on Programming Languages}
+      \field{langid}{english}
+      \field{number}{POPL}
+      \field{title}{RustBelt: Securing the Foundations of the Rust Programming Language}
+      \field{volume}{2}
+      \field{year}{2018}
+      \true{nocite}
+      \field{pages}{1\bibrangedash 34}
+      \range{pages}{34}
+      \verb{doi}
+      \verb 10.1145/3158154
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

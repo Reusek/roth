@@ -1,0 +1,533 @@
+%% ===================================================================
+%% KAPITOLA 3: ANALÝZA A NÁVRH
+%% ===================================================================
+
+\subsection{Požadavky na kompilátor}
+\label{sec:pozadavky}
+
+Před samotnou implementací je nutné definovat požadavky na kompilátor
+\Roth{}. Tyto požadavky lze rozdělit na funkční (co má systém dělat)
+a~nefunkční (jaké vlastnosti má systém mít).
+
+
+\subsubsection{Funkční požadavky}
+
+\paragraph{Kompilace zdrojového kódu.}
+Kompilátor musí být schopen přeložit zdrojový kód v~jazyce \Roth{}
+do cílového jazyka. Vstupem je soubor s~příponou \texttt{.rt} obsahující
+program v~jazyce \Roth{}, výstupem je soubor v~jazyce Rust nebo C,
+který lze následně zkompilovat standardními nástroji.
+
+\paragraph{Podpora více cílových platforem.}
+Systém musí podporovat generování kódu pro více cílových jazyků:
+\begin{itemize}
+	\item \textbf{Rust} --- primární cílový jazyk, využívající typovou
+	      bezpečnost a~optimalizace kompilátoru \texttt{rustc},
+	\item \textbf{C} --- sekundární cílový jazyk pro maximální portabilitu.
+\end{itemize}
+
+\paragraph{Interaktivní prostředí REPL.}
+Kompilátor musí poskytovat interaktivní prostředí typu Read-Eval-Print
+Loop, které umožňuje:
+\begin{itemize}
+	\item okamžité vyhodnocování výrazů,
+	\item definování nových slov s~perzistencí mezi příkazy,
+	\item zobrazování stavu zásobníku po každém příkazu.
+\end{itemize}
+
+\paragraph{Optimalizace kódu.}
+Kompilátor musí implementovat optimalizační průchody nad mezikódem,
+které zlepšují výkon generovaného programu bez změny jeho sémantiky.
+
+\paragraph{Sémantická kontrola.}
+Před generováním kódu musí kompilátor provádět sémantickou analýzu,
+která kontroluje:
+\begin{itemize}
+	\item definovanost všech použitých slov,
+	\item nepřípustnost redefinice vestavěných slov,
+	\item správnost syntaktických konstrukcí (párování \texttt{IF}/\texttt{THEN},
+	      \texttt{DO}/\texttt{LOOP} atd.).
+\end{itemize}
+
+\paragraph{Podpora pro inkluze souborů.}
+Kompilátor musí podporovat direktivu \texttt{INCLUDE} pro vkládání
+obsahu externích souborů, včetně detekce cyklických závislostí.
+
+
+\subsubsection{Nefunkční požadavky}
+
+\paragraph{Rozšiřitelnost.}
+Architektura kompilátoru musí umožňovat snadné přidávání:
+\begin{itemize}
+	\item nových optimalizačních průchodů,
+	\item nových cílových platforem (backendů),
+	\item nových vestavěných slov.
+\end{itemize}
+
+\paragraph{Modularita.}
+Jednotlivé fáze kompilace musí být odděleny do samostatných modulů
+s~jasně definovanými rozhraními. To umožňuje nezávislé testování
+a~vývoj jednotlivých částí.
+
+\paragraph{Diagnostika chyb.}
+Chybové zprávy musí obsahovat informace o~pozici chyby ve zdrojovém
+kódu (řádek, sloupec) a~srozumitelný popis problému.
+
+\paragraph{Výkonnost.}
+Generovaný kód by měl být srovnatelný s~výkonem existujících
+implementací jazyka \Forth{}. Samotná kompilace by měla být
+dostatečně rychlá pro interaktivní použití v~REPL.
+
+
+%% ===================================================================
+
+\subsection{Architektura systému}
+\label{sec:architektura}
+
+Kompilátor \Roth{} je navržen jako víceprůchodový kompilátor
+s~explicitní reprezentací mezikódu. Architektura systému je
+znázorněna na obrázku~\ref{fig:architecture}.
+
+\begin{figure}[ht]
+	\centering
+	\begin{tikzpicture}[
+			node distance=1.2cm and 2cm,
+			box/.style={rectangle, draw, rounded corners, minimum width=2.8cm, minimum height=0.7cm, align=center, font=\small},
+			data/.style={rectangle, draw, dashed, minimum width=2cm, minimum height=0.5cm, align=center, font=\footnotesize},
+			arrow/.style={->, thick}
+		]
+		% Frontend
+		\node[box] (lexer) {Lexer};
+		\node[box, below of=lexer] (parser) {Parser};
+		\node[box, below of=parser] (analyzer) {Sémantický\\analyzátor};
+		\node[box, below of=analyzer] (lowering) {IR Lowering};
+
+		% Middle-end
+		\node[box, below of=lowering] (optimizer) {Optimalizátor};
+
+		% Backend
+		\node[box, below left=1cm and 0.5cm of optimizer] (rust-backend) {Rust Backend};
+		\node[box, below right=1cm and 0.5cm of optimizer] (c-backend) {C Backend};
+
+		% Data flows
+		\node[data, right=1.5cm of lexer] (tokens) {Tokeny};
+		\node[data, right=1.5cm of parser] (ast) {AST};
+		\node[data, right=1.5cm of lowering] (ir1) {IR};
+		\node[data, right=1.5cm of optimizer] (ir2) {Optimalizované IR};
+
+		% Arrows
+		\draw[arrow] (lexer) -- (parser);
+		\draw[arrow] (parser) -- (analyzer);
+		\draw[arrow] (analyzer) -- (lowering);
+		\draw[arrow] (lowering) -- (optimizer);
+		\draw[arrow] (optimizer) -- (rust-backend);
+		\draw[arrow] (optimizer) -- (c-backend);
+
+		% Data annotations
+		\draw[arrow, dashed, gray] (lexer.east) -- (tokens.west);
+		\draw[arrow, dashed, gray] (parser.east) -- (ast.west);
+		\draw[arrow, dashed, gray] (lowering.east) -- (ir1.west);
+		\draw[arrow, dashed, gray] (optimizer.east) -- (ir2.west);
+
+		% Labels
+		\node[left=0.3cm of lexer, font=\footnotesize\itshape] {Frontend};
+		\node[left=0.3cm of optimizer, font=\footnotesize\itshape] {Middle-end};
+		\node[left=0.3cm of rust-backend, font=\footnotesize\itshape, yshift=0.5cm] {Backend};
+	\end{tikzpicture}
+	\caption{Architektura kompilátoru \Roth{}}
+	\label{fig:architecture}
+\end{figure}
+
+
+\subsubsection{Frontend}
+
+Frontend kompilátoru zajišťuje analýzu zdrojového kódu a~jeho
+transformaci do abstraktní reprezentace. Skládá se z~následujících
+komponent:
+
+\paragraph{Lexer.}
+Lexikální analyzátor (\texttt{lexer.rs}) převádí vstupní text
+na proud tokenů. Rozpoznává čísla, slova, řetězce, komentáře
+a~speciální znaky pro definice slov (\texttt{:} a~\texttt{;}).
+
+\paragraph{Parser.}
+Syntaktický analyzátor (\texttt{parser.rs}) konstruuje abstraktní
+syntaktický strom (AST) z~proudu tokenů. AST reprezentuje hierarchickou
+strukturu programu pomocí následujících typů uzlů:
+\begin{description}
+	\item[\texttt{Program}] --- kořenový uzel obsahující seznam příkazů,
+	\item[\texttt{Definition}] --- definice uživatelského slova,
+	\item[\texttt{Number}] --- číselná konstanta,
+	\item[\texttt{Word}] --- volání slova,
+	\item[\texttt{StringLiteral}] --- řetězcová konstanta,
+	\item[\texttt{VariableDeclaration}] --- deklarace proměnné.
+\end{description}
+
+\paragraph{Sémantický analyzátor.}
+Modul \texttt{analyzer.rs} provádí sémantickou kontrolu AST.
+Udržuje tabulku definovaných slov (vestavěných i~uživatelských)
+a~proměnných. Kontroluje, zda jsou všechna použitá slova definována
+a~zda nedochází k~redefinici vestavěných slov.
+
+
+\subsubsection{Middle-end}
+
+Middle-end kompilátoru pracuje s~mezikódem (IR) a~provádí
+platformově nezávislé transformace.
+
+\paragraph{IR Lowering.}
+Modul \texttt{ir\_lowering.rs} transformuje AST do mezikódu.
+Tato transformace zahrnuje:
+\begin{itemize}
+	\item překlad slov na odpovídající IR instrukce,
+	\item generování návěstí pro řídicí struktury,
+	\item alokaci proměnných.
+\end{itemize}
+
+\paragraph{Optimalizátor.}
+Modul \texttt{ir\_optimizer.rs} implementuje sadu optimalizačních
+průchodů, které transformují IR za účelem zlepšení výkonu.
+Optimalizátor používá iterativní přístup --- průchody se opakují,
+dokud nedojde k~dosažení fixního bodu.
+
+
+\subsubsection{Backend}
+
+Backend kompilátoru generuje cílový kód z~optimalizovaného IR.
+Každý backend implementuje společné rozhraní definované traitem
+\texttt{CodeGenerator}:
+
+\begin{lstlisting}[language=Rust, caption={Rozhraní generátoru kódu}]
+pub trait CodeGenerator {
+    fn generate(&mut self, ast: &AstNode) -> String;
+    fn get_file_extension(&self) -> &str;
+    fn get_compile_command(&self, filename: &str) -> String;
+}
+\end{lstlisting}
+
+\paragraph{Rust Backend.}
+Generuje idiomatický kód v~jazyce Rust využívající vektor jako
+zásobník. Podporuje všechny IR instrukce včetně řídicích struktur
+a~volání funkcí.
+
+\paragraph{C Backend.}
+Generuje kód v~jazyce C s~manuální správou zásobníku pomocí pole.
+Tento backend je vhodný pro prostředí bez podpory Rustu.
+
+
+%% ===================================================================
+
+\subsection{Návrh mezikódu}
+\label{sec:navrh-mezikodu}
+
+Mezikód (IR) kompilátoru \Roth{} je navržen jako zásobníkový kód,
+který přirozeně odpovídá sémantice zdrojového jazyka. Každá
+instrukce má explicitně definovaný \emph{stack effect} --- počet
+hodnot, které odebírá ze zásobníku, a~počet hodnot, které na
+zásobník ukládá.
+
+
+\subsubsection{Struktura IR}
+
+IR programu se skládá ze tří hlavních komponent:
+
+\paragraph{IRProgram.}
+Reprezentuje celý program. Obsahuje hlavní funkci (\texttt{main})
+a~slovník uživatelských funkcí.
+
+\begin{lstlisting}[language=Rust, caption={Struktura IR programu}]
+pub struct IRProgram {
+    pub functions: HashMap<String, IRFunction>,
+    pub main: IRFunction,
+}
+\end{lstlisting}
+
+\paragraph{IRFunction.}
+Reprezentuje jednu funkci (slovo). Obsahuje název, seznam instrukcí
+a~informaci o~stack effect celé funkce.
+
+\begin{lstlisting}[language=Rust, caption={Struktura IR funkce}]
+pub struct IRFunction {
+    pub name: String,
+    pub instructions: Vec<IRInstruction>,
+    pub stack_effect: StackEffect,
+}
+\end{lstlisting}
+
+\paragraph{StackEffect.}
+Popisuje vliv instrukce nebo funkce na zásobník.
+
+\begin{lstlisting}[language=Rust, caption={Stack effect}]
+pub struct StackEffect {
+    pub consumes: usize,  // Pocet hodnot odebranych ze zasobniku
+    pub produces: usize,  // Pocet hodnot ulozenych na zasobnik
+}
+\end{lstlisting}
+
+
+\subsubsection{Instrukční sada}
+
+Instrukční sada IR je navržena tak, aby pokrývala všechny
+konstrukce jazyka \Roth{} a~zároveň umožňovala efektivní
+optimalizaci. Tabulka~\ref{tab:ir-full} uvádí kompletní
+seznam instrukcí.
+
+\begin{table}[ht]
+	\centering
+	\caption{Instrukční sada mezikódu \Roth{}}
+	\label{tab:ir-full}
+	\begin{tabular}{llcc}
+		\toprule
+		\textbf{Instrukce}     & \textbf{Popis}                   & \textbf{Consumes} & \textbf{Produces} \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Zásobníkové operace}}                                                  \\
+		\texttt{Push(v)}       & Vloží hodnotu na zásobník        & 0                 & 1                 \\
+		\texttt{Pop}           & Odebere hodnotu ze zásobníku     & 1                 & 0                 \\
+		\texttt{Dup}           & Duplikuje vrchol zásobníku       & 1                 & 2                 \\
+		\texttt{Drop}          & Zahodí vrchol zásobníku          & 1                 & 0                 \\
+		\texttt{Swap}          & Prohodí dva vrchní prvky         & 2                 & 2                 \\
+		\texttt{Over}          & Zkopíruje druhý prvek na vrchol  & 2                 & 3                 \\
+		\texttt{Rot}           & Rotuje tři vrchní prvky          & 3                 & 3                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Aritmetické operace}}                                                  \\
+		\texttt{Add}           & Sečte dva prvky                  & 2                 & 1                 \\
+		\texttt{Sub}           & Odečte prvky                     & 2                 & 1                 \\
+		\texttt{Mul}           & Vynásobí prvky                   & 2                 & 1                 \\
+		\texttt{Div}           & Celočíselně vydělí               & 2                 & 1                 \\
+		\texttt{Mod}           & Zbytek po dělení                 & 2                 & 1                 \\
+		\texttt{Neg}           & Negace čísla                     & 1                 & 1                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Porovnávací operace}}                                                  \\
+		\texttt{Equal}         & Test rovnosti                    & 2                 & 1                 \\
+		\texttt{NotEqual}      & Test nerovnosti                  & 2                 & 1                 \\
+		\texttt{Less}          & Menší než                        & 2                 & 1                 \\
+		\texttt{Greater}       & Větší než                        & 2                 & 1                 \\
+		\texttt{LessEqual}     & Menší nebo rovno                 & 2                 & 1                 \\
+		\texttt{GreaterEqual}  & Větší nebo rovno                 & 2                 & 1                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Logické operace}}                                                      \\
+		\texttt{And}           & Logický součin                   & 2                 & 1                 \\
+		\texttt{Or}            & Logický součet                   & 2                 & 1                 \\
+		\texttt{Not}           & Logická negace                   & 1                 & 1                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Řídicí tok}}                                                           \\
+		\texttt{Jump(l)}       & Nepodmíněný skok                 & 0                 & 0                 \\
+		\texttt{JumpIf(l)}     & Skok pokud true                  & 1                 & 0                 \\
+		\texttt{JumpIfNot(l)}  & Skok pokud false                 & 1                 & 0                 \\
+		\texttt{Call(f)}       & Volání funkce                    & *                 & *                 \\
+		\texttt{Return}        & Návrat z~funkce                  & 0                 & 0                 \\
+		\texttt{Label(l)}      & Návěstí                          & 0                 & 0                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Smyčky}}                                                               \\
+		\texttt{DoLoop(s,e)}   & Začátek DO smyčky                & 2                 & 0                 \\
+		\texttt{Loop(l)}       & Konec LOOP (inkrement, test)     & 0                 & 0                 \\
+		\texttt{PushLoopIndex} & Vloží index smyčky (I)           & 0                 & 1                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Vstup/výstup}}                                                         \\
+		\texttt{Print}         & Vypíše číslo                     & 1                 & 0                 \\
+		\texttt{PrintChar}     & Vypíše znak                      & 1                 & 0                 \\
+		\texttt{PrintStack}    & Vypíše celý zásobník             & 0                 & 0                 \\
+		\texttt{ReadChar}      & Načte znak                       & 0                 & 1                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Paměťové operace}}                                                     \\
+		\texttt{Load(a)}       & Načte z~paměti                   & 0                 & 1                 \\
+		\texttt{Store(a)}      & Uloží do paměti                  & 1                 & 0                 \\
+		\midrule
+		\multicolumn{4}{l}{\textit{Optimalizované instrukce}}                                             \\
+		\texttt{LoadConst(n)}  & Načte konstantu (optimalizováno) & 0                 & 1                 \\
+		\texttt{Nop}           & Prázdná operace                  & 0                 & 0                 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+
+\subsubsection{Stack Effect anotace}
+
+Pro automatické odvození stack effect jednotlivých instrukcí
+využívá kompilátor \Roth{} procedurální makro
+\texttt{\#[derive(StackEffect)]}. Toto makro generuje implementaci
+metody \texttt{stack\_effect()} na základě anotací
+\texttt{\#[stack\_effect(consumes = N, produces = M)]}:
+
+\begin{lstlisting}[language=Rust, caption={Příklad anotace stack effect}]
+#[derive(Debug, Clone, PartialEq, StackEffect)]
+pub enum IRInstruction {
+    #[stack_effect(consumes = 0, produces = 1)]
+    Push(IRValue),
+    #[stack_effect(consumes = 2, produces = 1)]
+    Add,
+    // ...
+}
+\end{lstlisting}
+
+Tato informace je využívána optimalizátorem pro analýzu datového
+toku a~detekci mrtvého kódu.
+
+
+\subsubsection{Hodnoty v~IR}
+
+Mezikód pracuje s~několika typy hodnot reprezentovaných výčtem
+\texttt{IRValue}:
+
+\begin{lstlisting}[language=Rust, caption={Typy hodnot v~IR}]
+pub enum IRValue {
+    Constant(i32),    // Ciselna konstanta
+    StackTop,         // Vrchol zasobniku
+    StackPos(usize),  // Pozice na zasobniku (0 = vrchol)
+    Variable(String), // Pojmenovana promenna
+    Temporary(usize), // Docasna hodnota s ID
+}
+\end{lstlisting}
+
+
+%% ===================================================================
+
+\subsection{Návrh optimalizačních průchodů}
+\label{sec:navrh-optimalizaci}
+
+Optimalizátor kompilátoru \Roth{} je navržen jako rozšiřitelná
+sada průchodů, které transformují IR. Každý průchod implementuje
+společný trait \texttt{IROptimizationPass}.
+
+
+\subsubsection{Rozhraní optimalizačního průchodu}
+
+\begin{lstlisting}[language=Rust, caption={Trait pro optimalizační průchody}]
+pub trait IROptimizationPass {
+    fn name(&self) -> &str;
+    fn optimize_program(&mut self, program: &mut IRProgram) -> bool;
+    fn optimize_function(&mut self, function: &mut IRFunction) -> bool;
+}
+\end{lstlisting}
+
+Metoda \texttt{optimize\_program} vrací \texttt{true}, pokud
+průchod provedl nějakou změnu. Tato informace je využívána
+pro iterativní optimalizaci.
+
+
+\subsubsection{Implementované průchody}
+
+Kompilátor \Roth{} implementuje pět optimalizačních průchodů:
+
+\paragraph{Function Inlining.}
+Nahrazuje volání malých funkcí jejich tělem. Funkce je považována
+za vhodnou k~inliningu, pokud:
+\begin{itemize}
+	\item má méně než 20 instrukcí,
+	\item neobsahuje rekurzivní volání,
+	\item neobsahuje řídicí struktury (skoky, návěstí).
+\end{itemize}
+
+Inlining eliminuje režii volání funkce a~vytváří příležitosti
+pro další optimalizace (např. constant folding).
+
+\paragraph{Constant Folding.}
+Vyhodnocuje konstantní výrazy v~době kompilace. Průchod hledá
+vzory typu:
+\begin{center}
+	\texttt{Push(a) Push(b) BinaryOp} $\rightarrow$ \texttt{LoadConst(result)}
+\end{center}
+
+Podporuje všechny aritmetické, porovnávací a~logické operace.
+Dělení nulou je zachováno pro runtime detekci chyby.
+
+\paragraph{Peephole Optimization.}
+Aplikuje lokální transformace na krátké sekvence instrukcí:
+\begin{itemize}
+	\item \texttt{Push(a) Dup Add} $\rightarrow$ \texttt{LoadConst(a*2)}
+	\item \texttt{Push(a) Push(b) Swap} $\rightarrow$ \texttt{Push(b) Push(a)}
+	\item \texttt{Swap Swap} $\rightarrow$ odstranění obou instrukcí
+	\item \texttt{Dup Drop} $\rightarrow$ odstranění obou instrukcí
+\end{itemize}
+
+\paragraph{Strength Reduction.}
+Nahrazuje drahé operace levnějšími ekvivalenty:
+\begin{itemize}
+	\item \texttt{Push(0) Add} $\rightarrow$ odstranění (identita)
+	\item \texttt{Push(1) Mul} $\rightarrow$ odstranění (identita)
+	\item \texttt{Push(0) Mul} $\rightarrow$ \texttt{Drop LoadConst(0)}
+	\item \texttt{Push(2) Mul} $\rightarrow$ \texttt{Dup Add}
+\end{itemize}
+
+\paragraph{Dead Code Elimination.}
+Odstraňuje instrukce, které nemají vliv na výsledek programu:
+\begin{itemize}
+	\item instrukce \texttt{Nop},
+	\item sekvence \texttt{Push Drop} (hodnota není použita),
+	\item sekvence \texttt{Dup Drop} (efektivně no-op).
+\end{itemize}
+
+
+\subsubsection{Optimalizační pipeline}
+
+Průchody jsou organizovány do pipeline, která je spouštěna
+iterativně:
+
+\begin{lstlisting}[language=Rust, caption={Konfigurace optimalizační pipeline}]
+pub struct IROptimizer {
+    passes: Vec<Box<dyn IROptimizationPass>>,
+    max_iterations: usize,  // Vychozi: 10
+}
+\end{lstlisting}
+
+Pořadí průchodů je navrženo tak, aby maximalizovalo efektivitu
+optimalizací:
+\begin{enumerate}
+	\item \textbf{Function Inlining} --- nejdříve vložit těla funkcí,
+	      aby byly dostupné pro další optimalizace
+	\item \textbf{Constant Folding} --- vyhodnotit konstantní výrazy
+	      (včetně těch vzniklých inliningem)
+	\item \textbf{Peephole Optimization} --- aplikovat lokální vzory
+	\item \textbf{Strength Reduction} --- nahradit drahé operace
+	\item \textbf{Dead Code Elimination} --- odstranit mrtvý kód
+	      (včetně Nop instrukcí z~peephole optimalizací)
+\end{enumerate}
+
+Pipeline se opakuje, dokud žádný průchod neprovede změnu,
+nebo dokud není dosažen maximální počet iterací (standardně 10).
+Toto iterativní vyhodnocování umožňuje, aby optimalizace
+spolupracovaly --- například inlining může odhalit nové konstantní
+výrazy pro constant folding.
+
+
+\subsubsection{Příklad optimalizace}
+
+Uvažujme následující program v~jazyce \Roth{}:
+
+\begin{lstlisting}[language=Forth]
+: DOUBLE DUP + ;
+5 DOUBLE .
+\end{lstlisting}
+
+Po IR lowering:
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+function DOUBLE:
+  Dup
+  Add
+  Return
+
+function main:
+  Push(5)
+  Call(DOUBLE)
+  Print
+\end{lstlisting}
+
+Po inliningu:
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+function main:
+  Push(5)
+  Dup
+  Add
+  Print
+\end{lstlisting}
+
+Po peephole optimalizaci (\texttt{Push Dup Add} $\rightarrow$ \texttt{LoadConst}):
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+function main:
+  LoadConst(10)
+  Print
+\end{lstlisting}
+
+Výsledný kód obsahuje pouze dvě instrukce místo původních čtyř,
+přičemž veškeré výpočty byly provedeny v~době kompilace.
+

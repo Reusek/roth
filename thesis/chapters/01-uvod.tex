@@ -1,0 +1,118 @@
+%% ===================================================================
+%% KAPITOLA 1: ÚVOD
+%% ===================================================================
+\section{Úvod}
+\label{sec:uvod}
+
+Zásobníkové programovací jazyky představují specifickou kategorii jazyků,
+které se od běžných jazyků odlišují fundamentálním přístupem k~předávání
+dat mezi operacemi. Místo pojmenovaných proměnných a~explicitního předávání
+argumentů využívají implicitní datový zásobník, na který operace ukládají
+své výsledky a~ze kterého odebírají své operandy. Tento přístup vede
+k~minimalistické syntaxi a~vysoké kompozičnosti kódu.
+
+Nejvýznamnějším představitelem zásobníkových jazyků je \Forth{}, navržený
+Charlesem Moorem v~šedesátých letech 20. století. \Forth{} si získal
+oblibu zejména v~oblasti vestavěných systémů a~řízení hardware, kde
+jeho jednoduchost a~efektivita představují významné výhody. Přestože
+dnes \Forth{} nepatří mezi nejrozšířenější programovací jazyky, jeho koncepty
+ovlivnily návrh mnoha moderních technologií, včetně virtuálních strojů,
+jako jsou JVM a WebAssembly.
+
+Tato práce se zabývá návrhem a~implementací kompilátoru pro zásobníkový
+jazyk nazvaný \Roth{}, který je inspirován jazykem \Forth{}, ale přináší
+některé moderní prvky. Kompilátor je implementován v~jazyce Rust, což
+umožňuje využít jeho silný typový systém a~záruky bezpečnosti paměti
+bez nutnosti použití garbage collectoru.
+
+
+\subsection{Motivace}
+\label{sec:motivace}
+
+Motivace pro tuto práci vychází z~několika oblastí:
+
+\paragraph{Vzdělávací hodnota zásobníkových jazyků.}
+Zásobníkové jazyky poskytují jedinečný pohled na principy výpočtu
+a~kompilace. Jejich jednoduchost umožňuje soustředit se na podstatu
+problému bez syntaktického balastu běžných jazyků. Studium a~implementace
+takového jazyka nabízí hluboký vhled do fungování kompilátorů, optimalizací
+a~generování kódu.
+
+\paragraph{Praktické využití kompilátoru.}
+Kompilátor \Roth{} není pouze akademickým cvičením. Generuje efektivní
+kód pro reálné platformy (Rust, C) a~obsahuje interaktivní prostředí
+REPL s~JIT kompilací, které umožňuje okamžitou zpětnou vazbu při vývoji.
+Tato kombinace činí z~\Roth{} nástroj použitelný jak pro výuku, tak
+pro experimentování s~nízkoúrovňovým programováním.
+
+\paragraph{Volba jazyka Rust pro implementaci.}
+Rust představuje moderní systémový programovací jazyk, který kombinuje
+výkon jazyků jako C nebo C++ s~bezpečností paměti garantovanou již
+v~době kompilace. Pro implementaci kompilátoru nabízí Rust několik
+výhod: algebraické datové typy ideální pro reprezentaci AST a~mezikódu,
+pattern matching pro elegantní zpracování syntaktických konstrukcí,
+a~ownership systém zabraňující běžným chybám při správě paměti.
+
+
+\subsection{Cíle práce}
+\label{sec:cile}
+
+Hlavním cílem práce je navrhnout a~implementovat plnohodnotný kompilátor
+zásobníkového jazyka. Tento cíl lze rozdělit do následujících dílčích cílů:
+
+\begin{enumerate}
+	\item \textbf{Návrh jazyka \Roth{}} --- Definovat syntaxi a~sémantiku
+	      zásobníkového jazyka inspirovaného jazykem \Forth{}, který bude
+	      dostatečně expresivní pro praktické použití.
+
+	\item \textbf{Implementace kompilátoru} --- Vytvořit kompilátor
+	      v~jazyce Rust, který provádí lexikální, syntaktickou a~sémantickou
+	      analýzu zdrojového kódu a~generuje mezikód (IR).
+
+	\item \textbf{Optimalizace mezikódu} --- Implementovat sadu
+	      optimalizačních průchodů včetně constant foldingu, eliminace
+	      mrtvého kódu, peephole optimalizací a~inliningu.
+
+	\item \textbf{Generování cílového kódu} --- Vytvořit backendy
+	      pro generování kódu v~jazycích Rust a~C, což umožní
+	      přenositelnost na různé platformy.
+
+	\item \textbf{REPL s~JIT kompilací} --- Implementovat interaktivní
+	      prostředí, které využívá just-in-time (JIT) kompilaci pro okamžité
+	      vyhodnocování příkazů.
+
+	\item \textbf{Standardní knihovna} --- Vytvořit základní knihovnu
+	      obsahující běžně používané operace pro práci se zásobníkem,
+	      aritmetiku, vstup a~výstup.
+\end{enumerate}
+
+
+\subsection{Struktura dokumentu}
+\label{sec:struktura}
+
+Dokument je strukturován následovně:
+
+\textbf{Kapitola~\ref{sec:teorie}} poskytuje teoretický základ nutný
+pro pochopení práce. Představuje jazyk \Forth{}, jeho historii
+a~principy zásobníkové architektury. Dále se věnuje obecné teorii
+kompilátorů, fázím překladu a~optimalizacím. Závěr kapitoly popisuje
+relevantní vlastnosti jazyka Rust.
+
+\textbf{Kapitola~\ref{sec:navrh}} se zabývá analýzou požadavků
+na kompilátor a~návrhem jeho architektury. Definuje instrukční sadu
+mezikódu a~navrhuje optimalizační průchody.
+
+\textbf{Kapitola~\ref{sec:implementace}} detailně popisuje implementaci
+jednotlivých částí kompilátoru: lexer, parser, sémantický analyzátor,
+generátor mezikódu, optimalizátor, backendy pro generování kódu,
+REPL prostředí a~standardní knihovnu.
+
+\textbf{Kapitola~\ref{sec:testovani}} prezentuje metodiku testování
+kompilátoru a~výsledky testů. Obsahuje také porovnání s~existujícími
+implementacemi jazyka \Forth{}.
+
+\textbf{Závěr} shrnuje dosažené výsledky, hodnotí splnění cílů
+a~navrhuje možná rozšíření.
+
+\textbf{Přílohy} obsahují elektronickou verzi zdrojových kódů,
+uživatelskou dokumentaci a~formální gramatiku jazyka.

@@ -1,0 +1,223 @@
+%% ===================================================================
+%% SEKCE 2.3: PROGRAMOVACÍ JAZYK RUST
+%% ===================================================================
+
+\subsection{Programovací jazyk Rust}
+\label{sec:rust}
+
+Rust je moderní systémový programovací jazyk vyvinutý společností
+Mozilla a~poprvé vydaný v~roce 2015. Kombinuje výkon jazyků jako
+C a~C++ s~bezpečností paměti garantovanou v~době kompilace, bez
+nutnosti garbage collectoru. Pro implementaci kompilátoru nabízí
+Rust několik vlastností, které činí vývoj efektivnějším
+a~bezpečnějším.
+
+
+\subsubsection{Algebraické datové typy}
+\label{sec:rust-adt}
+
+Rust poskytuje plnou podporu pro algebraické datové typy (ADT)
+prostřednictvím konstrukcí \texttt{struct} (součinové typy)
+a~\texttt{enum} (součtové typy). Tyto konstrukce jsou ideální
+pro reprezentaci datových struktur kompilátoru.
+
+\paragraph{Reprezentace AST.}
+Abstraktní syntaktický strom lze v~Rustu elegantně vyjádřit
+pomocí \texttt{enum}, kde každá varianta reprezentuje jeden typ
+uzlu:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+pub enum AstNode {
+    Number(i32, Position),
+    Word(String, Position),
+    StringLiteral(String, Position),
+    Definition { name: String, body: Vec<AstNode>, position: Position },
+    Program(Vec<AstNode>),
+}
+\end{lstlisting}
+
+Tato reprezentace má několik výhod oproti tradičním objektově
+orientovaným hierarchiím:
+\begin{itemize}
+	\item Kompilátor garantuje, že všechny varianty jsou ošetřeny
+	      při pattern matchingu.
+	\item Přidání nové varianty vyžaduje úpravu všech míst, kde
+	      se AST zpracovává --- kompilátor na chybějící případy
+	      upozorní.
+	\item Data asociovaná s~variantou jsou přímo součástí typu,
+	      bez nutnosti dodatečných alokací.
+\end{itemize}
+
+\paragraph{Reprezentace mezikódu.}
+Obdobně je implementován mezikód, kde každá instrukce je variantou
+typu \texttt{IRInstruction}:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+pub enum IRInstruction {
+    Push(IRValue), Pop, Dup, Drop, Add, Sub, Mul, Div,
+    Jump(IRLabel), JumpIf(IRLabel), Call(String), Return,
+    // ... dalsi instrukce
+}
+\end{lstlisting}
+
+
+\subsubsection{Pattern matching}
+\label{sec:rust-pattern}
+
+Pattern matching je v~Rustu implementován prostřednictvím konstrukce
+\texttt{match}, která umožňuje elegantní dekompozici algebraických
+datových typů. Na rozdíl od konstrukce \texttt{switch} v~jazycích
+jako C nebo Java je pattern matching v~Rustu:
+
+\begin{itemize}
+	\item \textbf{Exhaustivní} --- kompilátor ověřuje, že jsou
+	      pokryty všechny možné případy.
+	\item \textbf{Destrukturující} --- umožňuje extrahovat hodnoty
+	      z~vnořených struktur.
+	\item \textbf{S~guardy} --- podmínky lze kombinovat s~vzory.
+\end{itemize}
+
+Příklad použití pattern matchingu v~optimalizátoru:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+fn try_fold_binary_op(&self, op: &IRInstruction,
+                      a: i32, b: i32) -> Option<IRInstruction> {
+    match op {
+        IRInstruction::Add => Some(IRInstruction::LoadConst(a + b)),
+        IRInstruction::Sub => Some(IRInstruction::LoadConst(a - b)),
+        IRInstruction::Mul => Some(IRInstruction::LoadConst(a * b)),
+        IRInstruction::Div if b != 0 =>
+            Some(IRInstruction::LoadConst(a / b)),
+        _ => None,
+    }
+}
+\end{lstlisting}
+
+Výraz \texttt{if b != 0} je guard, který přidává dodatečnou podmínku
+k~vzoru. Varianta \texttt{\_} zachytává všechny neošetřené případy.
+
+
+\subsubsection{Ownership a bezpečnost paměti}
+\label{sec:rust-ownership}
+
+Rust garantuje bezpečnost paměti bez garbage collectoru pomocí
+systému ownership. Každá hodnota v~Rustu má právě jednoho vlastníka
+a~je automaticky uvolněna, když vlastník opustí svůj scope.
+
+\paragraph{Pravidla ownership.}
+\begin{enumerate}
+	\item Každá hodnota má právě jednoho vlastníka.
+	\item Když vlastník opustí scope, hodnota je uvolněna.
+	\item Vlastnictví lze přenést (move) nebo vypůjčit (borrow).
+\end{enumerate}
+
+\paragraph{Výpůjčky (borrowing).}
+Rust rozlišuje dva typy výpůjček:
+\begin{itemize}
+	\item \textbf{Sdílená výpůjčka} (\texttt{\&T}) --- umožňuje
+	      čtení, ale ne modifikaci. Může existovat libovolné množství
+	      sdílených výpůjček současně.
+	\item \textbf{Exkluzivní výpůjčka} (\texttt{\&mut T}) --- umožňuje
+	      modifikaci. V~daném okamžiku může existovat pouze jedna
+	      exkluzivní výpůjčka a~žádná sdílená.
+\end{itemize}
+
+Tato pravidla eliminují celé třídy chyb běžných v~C a~C++:
+data races, use-after-free, double-free a~dangling pointery.
+Pro kompilátor to znamená, že transformace nad AST a~IR jsou
+automaticky bezpečné --- kompilátor Rustu ověří, že žádná
+část kódu nemodifikuje data, která jsou současně čtena jinde.
+
+
+\subsubsection{Traity a polymorfismus}
+\label{sec:rust-traits}
+
+Traity v~Rustu jsou obdobou interfaces v~Javě nebo type classes
+v~Haskellu. Definují sadu metod, které musí typ implementovat.
+
+V~kompilátoru \Roth{} jsou traity použity pro definici rozhraní
+optimalizačních průchodů:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+pub trait IROptimizationPass {
+    fn name(&self) -> &str;
+    fn optimize_program(&mut self, prog: &mut IRProgram) -> bool;
+    fn optimize_function(&mut self, func: &mut IRFunction) -> bool;
+}
+\end{lstlisting}
+
+Každý optimalizační průchod implementuje tento trait, což umožňuje
+jejich jednotné zpracování v~optimalizační pipeline:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+pub struct IROptimizer {
+    passes: Vec<Box<dyn IROptimizationPass>>,
+    max_iterations: usize,
+}
+\end{lstlisting}
+
+Konstrukce \texttt{Box<dyn IROptimizationPass>} reprezentuje
+dynamicky typovaný ukazatel na objekt implementující daný trait
+(trait object), což umožňuje heterogenní kolekce různých
+optimalizačních průchodů.
+
+
+\subsubsection{Procedurální makra}
+\label{sec:rust-macros}
+
+Rust podporuje procedurální makra, která umožňují generování kódu
+v~době kompilace. Na rozdíl od textových maker v~C pracují
+procedurální makra s~tokenizovaným vstupem a~produkují validní
+Rust kód.
+
+V~kompilátoru \Roth{} jsou procedurální makra použita pro
+automatické odvození stack effects instrukcí mezikódu. Místo
+manuální implementace metody \texttt{stack\_effect()} pro každou
+instrukci:
+
+\begin{lstlisting}[basicstyle=\small\ttfamily]
+#[derive(StackEffect)]
+pub enum IRInstruction {
+    #[stack_effect(consumes = 0, produces = 1)]
+    Push(IRValue),
+    #[stack_effect(consumes = 1, produces = 0)]
+    Drop,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Add,
+    // ...
+}
+\end{lstlisting}
+
+Makro \texttt{\#[derive(StackEffect)]} automaticky vygeneruje
+implementaci metody, která vrací správný stack effect pro každou
+variantu instrukce. Toto řešení:
+\begin{itemize}
+	\item Eliminuje duplicitu kódu a~možnost nekonzistence.
+	\item Přesouvá metadata blíže k~definici dat.
+	\item Umožňuje validaci v~době kompilace.
+\end{itemize}
+
+
+\subsubsection{Správa závislostí a ekosystém}
+\label{sec:rust-cargo}
+
+Rust disponuje integrovaným systémem pro správu závislostí
+a~sestavování projektů nazvaným Cargo. Projekt je definován
+souborem \texttt{Cargo.toml}, který specifikuje:
+\begin{itemize}
+	\item Metadata projektu (název, verze, autoři)
+	\item Externí závislosti a~jejich verze
+	\item Konfiguraci kompilace (profily, features)
+\end{itemize}
+
+Pro kompilátor \Roth{} Cargo zajišťuje:
+\begin{itemize}
+	\item Reprodukovatelné sestavení díky souboru \texttt{Cargo.lock}.
+	\item Automatické stažení a~kompilaci závislostí.
+	\item Integraci s~testovacím frameworkem (\texttt{cargo test}).
+	\item Generování dokumentace (\texttt{cargo doc}).
+\end{itemize}
+
+Ekosystém Rustu (crates.io) poskytuje tisíce knihoven, z~nichž
+kompilátor \Roth{} využívá zejména knihovny pro dynamické načítání
+knihoven (pro JIT kompilaci v~REPL).
