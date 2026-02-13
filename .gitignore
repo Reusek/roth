@@ -31,3 +31,8 @@ Cargo.lock
 # OS files
 .DS_Store
 Thumbs.db
+
+# Project notes
+MAIL.md
+PROGRESS.md
+REPL_SPEC.md
