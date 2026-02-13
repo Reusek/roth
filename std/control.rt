@@ -5,17 +5,5 @@
 : TIMES 0 ?DO I LOOP ;
 : COUNTDOWN DUP 0 ?DO DUP I - . LOOP DROP ;
 
-( Conditional execution helpers )
-: EXECUTE-IF SWAP IF EXECUTE ELSE DROP THEN ;
-: EXECUTE-UNLESS SWAP NOT IF EXECUTE ELSE DROP THEN ;
-
-( Loop control helpers )
-: FOR 0 ?DO ;
-: NEXT LOOP ;
-
-( Iteration with step )
-: STEP-LOOP >R BEGIN DUP R@ + SWAP R@ + 2DUP >= UNTIL R> DROP DROP ;
-
-( Conditional loops using DO/LOOP )
-: WHILE-DO >R BEGIN R@ EXECUTE WHILE ;
-: UNTIL-DO >R BEGIN R@ EXECUTE NOT UNTIL R> DROP ;
+( Note: More advanced control flow words require EXECUTE, WHILE, UNTIL, etc. )
+( which are not yet fully implemented in the compiler )

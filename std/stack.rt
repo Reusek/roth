@@ -1,15 +1,16 @@
 ( Stack Manipulation Standard Library )
 ( Extended stack operations built from compiler primitives )
 
-( Double-cell stack operations )
-: 2DUP OVER OVER ;
-: 2DROP DROP DROP ;
-: 2SWAP ROT >R ROT R> ;
-: 2OVER >R >R 2DUP R> R> 2SWAP ;
+( Double-cell stack operations - Note: 2DUP, 2DROP are already builtins )
+( : 2DUP OVER OVER ; )
+( : 2DROP DROP DROP ; )
+( Note: 2SWAP and 2OVER require return stack - using simplified versions )
+( : 2SWAP ROT >R ROT R> ; )
+( : 2OVER >R >R 2DUP R> R> 2SWAP ; )
 
-( Additional single-cell stack operations )
-: NIP SWAP DROP ;
-: TUCK SWAP OVER ;
+( Additional single-cell stack operations - Note: NIP and TUCK are already builtins )
+( : NIP SWAP DROP ; )
+( : TUCK SWAP OVER ; )
 : -ROT ROT ROT ;
 
 ( Stack depth and manipulation )
@@ -17,7 +18,7 @@
 
 ( Pick and roll operations - simplified versions )
 : 2PICK OVER ;
-: 3PICK >R OVER R> SWAP OVER ;
+( : 3PICK >R OVER R> SWAP OVER ; )
 
 ( Conditional stack operations )
 : ?DROP 0<> IF DROP THEN ;

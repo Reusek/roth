@@ -40,12 +40,14 @@ impl CodeEmitter for BaseEmitter {
         if line.is_empty() {
             self.output.push('\n');
         } else {
-            self.output.push_str(&format!("{}{}\n", self.emit_indent(), line));
+            self.output
+                .push_str(&format!("{}{}\n", self.emit_indent(), line));
         }
     }
 
-    fn emit_block<F>(&mut self, header: &str, body: F) 
-    where F: FnOnce(&mut Self) 
+    fn emit_block<F>(&mut self, header: &str, body: F)
+    where
+        F: FnOnce(&mut Self),
     {
         self.emit_line(header);
         self.push_indent();
@@ -60,13 +62,13 @@ impl CodeEmitter for BaseEmitter {
             CommentStyle::CStyle => format!("void {}({}) {{", name, params_str),
             CommentStyle::Hash => format!("def {}({}):", name, params_str),
         };
-        
+
         self.emit_block(&header, |emitter| {
             for line in body.lines() {
                 emitter.emit_line(line);
             }
         });
-        
+
         if self.comment_style != CommentStyle::Hash {
             self.emit_line("}");
         }
@@ -112,7 +114,8 @@ impl RustEmitter {
         self.base.emit_line(&format!("pub struct {} {{", name));
         self.base.push_indent();
         for (field_name, field_type) in fields {
-            self.base.emit_line(&format!("pub {}: {},", field_name, field_type));
+            self.base
+                .emit_line(&format!("pub {}: {},", field_name, field_type));
         }
         self.base.pop_indent();
         self.base.emit_line("}");
@@ -120,7 +123,8 @@ impl RustEmitter {
     }
 
     pub fn emit_impl_block<F>(&mut self, struct_name: &str, body: F)
-    where F: FnOnce(&mut Self)
+    where
+        F: FnOnce(&mut Self),
     {
         self.base.emit_line(&format!("impl {} {{", struct_name));
         self.base.push_indent();
@@ -134,12 +138,19 @@ impl RustEmitter {
         self.base.emit_line(&format!("use {};", path));
     }
 
-    pub fn emit_pub_fn(&mut self, name: &str, params: &[(&str, &str)], return_type: Option<&str>, body: &str) {
-        let params_str = params.iter()
+    pub fn emit_pub_fn(
+        &mut self,
+        name: &str,
+        params: &[(&str, &str)],
+        return_type: Option<&str>,
+        body: &str,
+    ) {
+        let params_str = params
+            .iter()
             .map(|(name, ty)| format!("{}: {}", name, ty))
             .collect::<Vec<_>>()
             .join(", ");
-        
+
         let signature = match return_type {
             Some(ret) => format!("pub fn {}({}) -> {} {{", name, params_str, ret),
             None => format!("pub fn {}({}) {{", name, params_str),
@@ -160,8 +171,9 @@ impl CodeEmitter for RustEmitter {
         self.base.emit_line(line);
     }
 
-    fn emit_block<F>(&mut self, header: &str, body: F) 
-    where F: FnOnce(&mut Self) 
+    fn emit_block<F>(&mut self, header: &str, body: F)
+    where
+        F: FnOnce(&mut Self),
     {
         self.base.emit_line(header);
         self.base.push_indent();
@@ -217,25 +229,33 @@ impl CEmitter {
         self.base.emit_line(&format!("typedef struct {{"));
         self.base.push_indent();
         for (field_name, field_type) in fields {
-            self.base.emit_line(&format!("{} {};", field_type, field_name));
+            self.base
+                .emit_line(&format!("{} {};", field_type, field_name));
         }
         self.base.pop_indent();
         self.base.emit_line(&format!("}} {};", name));
         self.base.emit_line("");
     }
 
-    pub fn emit_c_function(&mut self, return_type: &str, name: &str, params: &[(&str, &str)], body: &str) {
+    pub fn emit_c_function(
+        &mut self,
+        return_type: &str,
+        name: &str,
+        params: &[(&str, &str)],
+        body: &str,
+    ) {
         let params_str = if params.is_empty() {
             "void".to_string()
         } else {
-            params.iter()
+            params
+                .iter()
                 .map(|(name, ty)| format!("{} {}", ty, name))
                 .collect::<Vec<_>>()
                 .join(", ")
         };
 
         let signature = format!("{} {}({}) {{", return_type, name, params_str);
-        
+
         self.base.emit_block(&signature, |emitter| {
             for line in body.lines() {
                 emitter.emit_line(line);
@@ -251,8 +271,9 @@ impl CodeEmitter for CEmitter {
         self.base.emit_line(line);
     }
 
-    fn emit_block<F>(&mut self, header: &str, body: F) 
-    where F: FnOnce(&mut Self) 
+    fn emit_block<F>(&mut self, header: &str, body: F)
+    where
+        F: FnOnce(&mut Self),
     {
         self.base.emit_line(header);
         self.base.push_indent();
@@ -261,7 +282,12 @@ impl CodeEmitter for CEmitter {
     }
 
     fn emit_function(&mut self, name: &str, params: &[&str], body: &str) {
-        self.emit_c_function("void", name, &params.iter().map(|p| (*p, "int")).collect::<Vec<_>>(), body);
+        self.emit_c_function(
+            "void",
+            name,
+            &params.iter().map(|p| (*p, "int")).collect::<Vec<_>>(),
+            body,
+        );
     }
 
     fn emit_comment(&mut self, text: &str) {

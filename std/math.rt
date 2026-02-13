@@ -1,12 +1,10 @@
 ( Mathematical Operations Standard Library )
 ( Extended math functions built from compiler primitives )
 
-( Absolute value )
-: ABS DUP 0 < IF NEGATE THEN ;
-
-( Min/Max operations )
-: MIN 2DUP > IF SWAP THEN DROP ;
-: MAX 2DUP < IF SWAP THEN DROP ;
+( Absolute value - Note: ABS, MIN, MAX, WITHIN, /MOD, */ are builtins )
+( : ABS DUP 0 < IF NEGATE THEN ; )
+( : MIN 2DUP > IF SWAP THEN DROP ; )
+( : MAX 2DUP < IF SWAP THEN DROP ; )
 
 ( Square and power operations )
 : SQUARE DUP * ;
@@ -15,16 +13,17 @@
 ( Sign operations )
 : SIGN DUP 0< IF DROP -1 ELSE 0> IF 1 ELSE 0 THEN THEN ;
 
-( Range checking )
-: WITHIN >R OVER <= SWAP R> < AND ;
+( Range checking - Note: WITHIN is a builtin, but using simpler version )
+( : WITHIN >R OVER <= SWAP R> < AND ; )
 
-( Arithmetic helpers )
-: */ >R * R> / ;
-: /MOD 2DUP / >R MOD R> ;
+( Arithmetic helpers - Note: */ and /MOD are builtins )
+( : */ >R * R> / ; )
+( : /MOD 2DUP / >R MOD R> ; )
 
 ( Boolean arithmetic )
 : EVEN? 2 MOD 0= ;
 : ODD? 2 MOD 0<> ;
 
-( Clamping )
-: CLAMP >R MIN R> MAX ;
+( Clamping - using stack manipulation instead of return stack )
+( CLAMP: n min max -- clamped - clamps n to be within min,max )
+: CLAMP ROT MIN MAX ;

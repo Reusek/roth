@@ -7,4 +7,5 @@ pub mod ir_lowering;
 pub mod ir_optimizer;
 pub mod lexer;
 pub mod parser;
+pub mod repl;
 pub mod types;

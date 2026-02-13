@@ -7,6 +7,7 @@ mod ir_lowering;
 mod ir_optimizer;
 mod lexer;
 mod parser;
+mod repl;
 mod types;
 
 use crate::analyzer::SemanticAnalyzer;
@@ -18,15 +19,16 @@ use crate::ir_optimizer::IROptimizer;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use clap::Parser as ClapParser;
+use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 
 #[derive(ClapParser, Debug)]
 #[command(name = "roth")]
 #[command(about = "Enhanced Forth Compiler with IR Backend")]
 struct Args {
-    #[arg(help = "Forth file to compile")]
+    #[arg(help = "Forth file to compile (omit for REPL)")]
     file: Option<String>,
 
     #[arg(long, help = "Disable syntax highlighting")]
@@ -53,6 +55,150 @@ struct Args {
 
     #[arg(long, help = "Compile and run the generated code")]
     run: bool,
+
+    #[arg(long, short = 'i', help = "Start interactive REPL")]
+    interactive: bool,
+}
+
+/// Preprocesses source code to handle INCLUDE statements
+/// Recursively expands all INCLUDE directives
+fn preprocess_includes(
+    content: &str,
+    base_path: &Path,
+    included_files: &mut HashSet<PathBuf>,
+    debug: u8,
+) -> Result<String, String> {
+    let mut result = String::new();
+    let mut chars = content.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        // Handle comments - pass them through as-is
+        if c == '(' {
+            result.push(c);
+            // Skip until closing paren
+            while let Some(ch) = chars.next() {
+                result.push(ch);
+                if ch == ')' {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        // Check for INCLUDE keyword
+        if c == 'I' || c == 'i' {
+            let mut word = String::new();
+            word.push(c);
+
+            // Collect the rest of the word
+            while let Some(&ch) = chars.peek() {
+                if ch.is_alphabetic() {
+                    word.push(chars.next().unwrap());
+                } else {
+                    break;
+                }
+            }
+
+            if word.to_uppercase() == "INCLUDE" {
+                // Skip whitespace
+                while let Some(&ch) = chars.peek() {
+                    if ch.is_whitespace() {
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
+
+                // Parse filename (can be quoted or unquoted)
+                let mut filename = String::new();
+                if let Some(&ch) = chars.peek() {
+                    if ch == '"' {
+                        chars.next(); // consume opening quote
+                        while let Some(ch) = chars.next() {
+                            if ch == '"' {
+                                break;
+                            }
+                            filename.push(ch);
+                        }
+                    } else {
+                        // Unquoted filename - read until whitespace or end
+                        while let Some(&ch) = chars.peek() {
+                            if ch.is_whitespace() {
+                                break;
+                            }
+                            filename.push(chars.next().unwrap());
+                        }
+                    }
+                }
+
+                if filename.is_empty() {
+                    return Err("INCLUDE requires a filename".to_string());
+                }
+
+                // Resolve the filename: try relative to base path first, then relative to CWD
+                let include_path = base_path.join(&filename);
+                let canonical_path = if include_path.exists() {
+                    include_path.canonicalize().map_err(|e| {
+                        format!("Cannot canonicalize include file '{}': {}", filename, e)
+                    })?
+                } else {
+                    // Try relative to current working directory
+                    let cwd_path = Path::new(&filename);
+                    if cwd_path.exists() {
+                        cwd_path.canonicalize().map_err(|e| {
+                            format!("Cannot canonicalize include file '{}': {}", filename, e)
+                        })?
+                    } else {
+                        return Err(format!("Cannot find include file '{}': file not found in '{}' or current directory", 
+                            filename, base_path.display()));
+                    }
+                };
+
+                // Check for circular includes
+                if included_files.contains(&canonical_path) {
+                    if debug >= 2 {
+                        println!(
+                            "Skipping already included file: {}",
+                            canonical_path.display()
+                        );
+                    }
+                    result.push_str(&format!("( Already included: {} )", filename));
+                    continue;
+                }
+
+                included_files.insert(canonical_path.clone());
+
+                if debug >= 2 {
+                    println!("Including file: {}", canonical_path.display());
+                }
+
+                // Read the included file
+                let included_content = fs::read_to_string(&canonical_path)
+                    .map_err(|e| format!("Error reading include file '{}': {}", filename, e))?;
+
+                // Get the directory of the included file for nested includes
+                let included_dir = canonical_path
+                    .parent()
+                    .ok_or_else(|| format!("Cannot get parent directory of '{}'", filename))?;
+
+                // Recursively preprocess the included content
+                let processed =
+                    preprocess_includes(&included_content, included_dir, included_files, debug)?;
+
+                // Add a comment indicating the included file and append its content
+                result.push_str(&format!("\n( Begin included file: {} )\n", filename));
+                result.push_str(&processed);
+                result.push_str(&format!("\n( End included file: {} )\n", filename));
+            } else {
+                // Not INCLUDE, just a regular word starting with 'I'
+                result.push_str(&word);
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    Ok(result)
 }
 
 fn compile_file(
@@ -66,7 +212,23 @@ fn compile_file(
     let content = fs::read_to_string(filename)
         .map_err(|e| format!("Error reading file '{}': {}", filename, e))?;
 
-    let mut lexer = Lexer::new(content);
+    // Preprocess to handle INCLUDE statements
+    let source_path = Path::new(filename);
+    let base_dir = source_path.parent().unwrap_or(Path::new("."));
+    let canonical_source = source_path
+        .canonicalize()
+        .map_err(|e| format!("Cannot canonicalize source path: {}", e))?;
+
+    let mut included_files = HashSet::new();
+    included_files.insert(canonical_source);
+
+    let preprocessed = preprocess_includes(&content, base_dir, &mut included_files, debug)?;
+
+    if debug >= 2 {
+        println!("Preprocessed source:\n{}", preprocessed);
+    }
+
+    let mut lexer = Lexer::new(preprocessed);
     let tokens = lexer
         .tokenize()
         .map_err(|e| format!("Lexer error: {}", e))?;
@@ -122,7 +284,8 @@ fn compile_file(
             // Use new framework for modular backends
             let mut pipeline = crate::codegen::CodegenPipeline::new();
             let backend_name = backend.to_registry_name();
-            let code = pipeline.generate_code(backend_name, &ir)
+            let code = pipeline
+                .generate_code(backend_name, &ir)
                 .unwrap_or_else(|e| format!("// Error: {}", e));
             (code, "rs".to_string())
         }
@@ -130,7 +293,8 @@ fn compile_file(
             // Use new framework for modular backends
             let mut pipeline = crate::codegen::CodegenPipeline::new();
             let backend_name = backend.to_registry_name();
-            let code = pipeline.generate_code(backend_name, &ir)
+            let code = pipeline
+                .generate_code(backend_name, &ir)
                 .unwrap_or_else(|e| format!("// Error: {}", e));
             (code, "c".to_string())
         }
@@ -162,7 +326,8 @@ fn compile_file(
         Some(ref name) => {
             // If user specifies output, still put it in .build directory
             let output_path = Path::new(name);
-            let filename = output_path.file_name()
+            let filename = output_path
+                .file_name()
                 .ok_or("Invalid output filename")?
                 .to_str()
                 .ok_or("Invalid output filename encoding")?;
@@ -174,7 +339,8 @@ fn compile_file(
                 .ok_or("Invalid input filename")?
                 .to_str()
                 .ok_or("Invalid input filename encoding")?;
-            build_dir.join(format!("{}.{}", base_name, &file_extension))
+            build_dir
+                .join(format!("{}.{}", base_name, &file_extension))
                 .to_string_lossy()
                 .to_string()
         }
@@ -183,7 +349,7 @@ fn compile_file(
     // Write generated code to file
     fs::write(&output_file, &generated_code)
         .map_err(|e| format!("Error writing output file '{}': {}", output_file, e))?;
-    
+
     if debug >= 1 {
         println!("Code written to: {}", output_file);
     }
@@ -196,13 +362,12 @@ fn compile_file(
     Ok(())
 }
 
-fn compile_and_run(
-    source_file: &str,
-    backend: Backend,
-    debug: u8,
-) -> Result<(), String> {
+fn compile_and_run(source_file: &str, backend: Backend, debug: u8) -> Result<(), String> {
     let compile_cmd = match backend {
-        Backend::RustIR | Backend::IRDebugRust | Backend::ModularRust | Backend::ModularRustDebug => {
+        Backend::RustIR
+        | Backend::IRDebugRust
+        | Backend::ModularRust
+        | Backend::ModularRustDebug => {
             let crate_name = std::path::Path::new(source_file)
                 .file_stem()
                 .unwrap()
@@ -214,7 +379,10 @@ fn compile_and_run(
                 .unwrap()
                 .to_str()
                 .unwrap();
-            format!("rustc -O --crate-name {} {} -o .build/{}", crate_name, source_file, base_name)
+            format!(
+                "rustc -O --crate-name {} {} -o .build/{}",
+                crate_name, source_file, base_name
+            )
         }
         Backend::CIR | Backend::IRDebugC | Backend::ModularC | Backend::ModularCDebug => {
             let base_name = std::path::Path::new(source_file)
@@ -226,7 +394,7 @@ fn compile_and_run(
         }
     };
     let parts: Vec<&str> = compile_cmd.split_whitespace().collect();
-    
+
     if parts.is_empty() {
         return Err("Empty compile command".to_string());
     }
@@ -285,13 +453,16 @@ fn compile_and_run(
 
     // Print the program output
     print!("{}", String::from_utf8_lossy(&run_output.stdout));
-    
+
     if !run_output.stderr.is_empty() {
         eprint!("{}", String::from_utf8_lossy(&run_output.stderr));
     }
 
     if !run_output.status.success() {
-        return Err(format!("Program execution failed with exit code: {:?}", run_output.status.code()));
+        return Err(format!(
+            "Program execution failed with exit code: {:?}",
+            run_output.status.code()
+        ));
     }
 
     Ok(())
@@ -299,6 +470,29 @@ fn compile_and_run(
 
 fn main() {
     let args = Args::parse();
+
+    // Start REPL if no file provided or -i flag
+    if args.interactive || args.file.is_none() {
+        let config = repl::ReplConfig {
+            debug: args.debug,
+            show_welcome: true,
+            ..Default::default()
+        };
+
+        match repl::Repl::new(config) {
+            Ok(mut repl) => {
+                if let Err(e) = repl.run() {
+                    eprintln!("REPL error: {}", e);
+                    process::exit(1);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to initialize REPL: {}", e);
+                process::exit(1);
+            }
+        }
+        return;
+    }
 
     let backend = match Backend::from_str(&args.backend) {
         Some(b) => b,
@@ -311,16 +505,16 @@ fn main() {
         }
     };
 
-    match &args.file {
-        Some(filename) => {
-            if let Err(e) = compile_file(filename, backend, args.output, args.debug, args.no_color, args.run)
-            {
-                eprintln!("Compilation failed: {}", e);
-                process::exit(1);
-            }
-        }
-        None => {
-            eprintln!("No input file specified. Use --help for usage information.");
+    if let Some(filename) = &args.file {
+        if let Err(e) = compile_file(
+            filename,
+            backend,
+            args.output,
+            args.debug,
+            args.no_color,
+            args.run,
+        ) {
+            eprintln!("Compilation failed: {}", e);
             process::exit(1);
         }
     }

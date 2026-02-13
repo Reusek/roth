@@ -1,5 +1,7 @@
+use crate::codegen::backends::{
+    create_target_info, DebugBackend, ModularCBackend, ModularRustBackend,
+};
 use crate::codegen::framework::{Backend, CodegenContext, TargetInfo};
-use crate::codegen::backends::{ModularRustBackend, ModularCBackend, DebugBackend, create_target_info};
 use std::collections::HashMap;
 
 pub type BackendFactory = Box<dyn Fn() -> Box<dyn Backend>>;
@@ -13,13 +15,14 @@ impl BackendRegistry {
         let mut registry = Self {
             backends: HashMap::new(),
         };
-        
+
         registry.register_default_backends();
         registry
     }
 
-    pub fn register<F>(&mut self, name: &str, factory: F) 
-    where F: Fn() -> Box<dyn Backend> + 'static 
+    pub fn register<F>(&mut self, name: &str, factory: F)
+    where
+        F: Fn() -> Box<dyn Backend> + 'static,
     {
         self.backends.insert(name.to_string(), Box::new(factory));
     }
@@ -40,12 +43,12 @@ impl BackendRegistry {
         // Register modular backends
         self.register("rust", || Box::new(ModularRustBackend::new()));
         self.register("c", || Box::new(ModularCBackend::new()));
-        
+
         // Register debug variants
         self.register("rust-debug", || {
             Box::new(DebugBackend::new(Box::new(ModularRustBackend::new())))
         });
-        
+
         self.register("c-debug", || {
             Box::new(DebugBackend::new(Box::new(ModularCBackend::new())))
         });
@@ -84,19 +87,27 @@ impl CodegenPipeline {
     }
 
     pub fn register_backend<F>(&mut self, name: &str, factory: F)
-    where F: Fn() -> Box<dyn Backend> + 'static
+    where
+        F: Fn() -> Box<dyn Backend> + 'static,
     {
         self.registry.register(name, factory);
     }
 
-    pub fn generate_code(&mut self, backend_name: &str, ir: &crate::ir::IRProgram) -> Result<String, String> {
-        let mut backend = self.registry.create(backend_name)
+    pub fn generate_code(
+        &mut self,
+        backend_name: &str,
+        ir: &crate::ir::IRProgram,
+    ) -> Result<String, String> {
+        let mut backend = self
+            .registry
+            .create(backend_name)
             .ok_or_else(|| format!("Unknown backend: {}", backend_name))?;
 
         let target_info = create_target_info(backend_name);
         let mut ctx = CodegenContext::new(target_info);
 
-        backend.generate_program(ir, &mut ctx)
+        backend
+            .generate_program(ir, &mut ctx)
             .map_err(|e| e.to_string())
     }
 
@@ -166,11 +177,11 @@ mod tests {
     #[test]
     fn test_custom_backend_registration() {
         let mut pipeline = CodegenPipeline::new();
-        
-        pipeline.register_backend("custom", || {
-            Box::new(ModularRustBackend::new())
-        });
-        
-        assert!(pipeline.list_available_backends().contains(&"custom".to_string()));
+
+        pipeline.register_backend("custom", || Box::new(ModularRustBackend::new()));
+
+        assert!(pipeline
+            .list_available_backends()
+            .contains(&"custom".to_string()));
     }
 }

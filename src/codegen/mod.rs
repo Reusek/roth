@@ -1,17 +1,17 @@
 pub mod ir_generator;
 
 // New modular framework
-pub mod framework;
-pub mod emitters;
-pub mod languages;
-pub mod translators;
-pub mod templates;
 pub mod backends;
+pub mod emitters;
+pub mod framework;
+pub mod languages;
 pub mod registry;
+pub mod templates;
+pub mod translators;
 
 use crate::types::AstNode;
 pub use framework::{Backend as NewBackend, CodegenContext, CodegenResult};
-pub use registry::{CodegenPipeline, BackendRegistry};
+pub use registry::{BackendRegistry, CodegenPipeline};
 
 // Legacy trait for backward compatibility
 pub trait CodeGenerator {
@@ -52,7 +52,7 @@ impl Backend {
     pub fn to_registry_name(&self) -> &str {
         match self {
             Backend::RustIR => "rust-ir",
-            Backend::CIR => "c-ir", 
+            Backend::CIR => "c-ir",
             Backend::IRDebugRust => "ir-debug-rust",
             Backend::IRDebugC => "ir-debug-c",
             Backend::ModularRust => "rust",
@@ -70,9 +70,10 @@ pub fn create_generator(backend: Backend) -> Box<dyn CodeGenerator> {
         Backend::IRDebugRust => Box::new(ir_generator::IRDebugGenerator::new("rust")),
         Backend::IRDebugC => Box::new(ir_generator::IRDebugGenerator::new("c")),
         // For new framework backends, we'll create a wrapper
-        Backend::ModularRust | Backend::ModularC | Backend::ModularRustDebug | Backend::ModularCDebug => {
-            Box::new(ModularCodeGeneratorWrapper::new(backend))
-        }
+        Backend::ModularRust
+        | Backend::ModularC
+        | Backend::ModularRustDebug
+        | Backend::ModularCDebug => Box::new(ModularCodeGeneratorWrapper::new(backend)),
     }
 }
 
@@ -95,8 +96,10 @@ impl CodeGenerator for ModularCodeGeneratorWrapper {
     fn generate(&mut self, ast: &AstNode) -> String {
         // Convert AST to IR first (this would need to be implemented)
         // For now, return a placeholder
-        format!("// Generated using new modular framework\n// Backend: {}\n// AST: {:#?}", 
-                self.backend_name, ast)
+        format!(
+            "// Generated using new modular framework\n// Backend: {}\n// AST: {:#?}",
+            self.backend_name, ast
+        )
     }
 
     fn get_file_extension(&self) -> &str {
@@ -113,9 +116,11 @@ impl CodeGenerator for ModularCodeGeneratorWrapper {
             .unwrap()
             .to_str()
             .unwrap();
-        
+
         match self.backend_name.as_str() {
-            name if name.contains("rust") => format!("rustc -O {} -o .build/{}", filename, base_name),
+            name if name.contains("rust") => {
+                format!("rustc -O {} -o .build/{}", filename, base_name)
+            }
             name if name.contains("c") => format!("gcc -O2 -o .build/{} {}", base_name, filename),
             _ => format!("# Unknown backend: {}", self.backend_name),
         }

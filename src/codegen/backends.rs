@@ -1,8 +1,11 @@
-use crate::codegen::framework::{Backend, CodegenContext, CodegenResult, BackendCapabilities, NativeType, TargetInfo, CodeEmitter, TargetLanguage, IRTranslator};
-use crate::codegen::emitters::{RustEmitter, CEmitter};
-use crate::codegen::languages::{RustLanguage, CLanguage};
-use crate::codegen::translators::{RustTranslator, CTranslator};
+use crate::codegen::emitters::{CEmitter, RustEmitter};
+use crate::codegen::framework::{
+    Backend, BackendCapabilities, CodeEmitter, CodegenContext, CodegenResult, IRTranslator,
+    NativeType, TargetInfo, TargetLanguage,
+};
+use crate::codegen::languages::{CLanguage, RustLanguage};
 use crate::codegen::templates::TemplateEngine;
+use crate::codegen::translators::{CTranslator, RustTranslator};
 use crate::ir::IRProgram;
 
 pub struct ModularRustBackend {
@@ -180,7 +183,7 @@ impl Backend for DebugBackend {
         // We need to return a static string, so we'll use a match instead
         match self.inner.name() {
             "rust-modular" => "rust-modular-debug",
-            "c-modular" => "c-modular-debug", 
+            "c-modular" => "c-modular-debug",
             _ => "unknown-debug",
         }
     }
@@ -192,12 +195,18 @@ impl Backend for DebugBackend {
             output.push_str("=== BACKEND CAPABILITIES ===\n");
             let caps = self.inner.capabilities();
             output.push_str(&format!("Backend: {}\n", self.inner.name()));
-            output.push_str(&format!("Inline Assembly: {}\n", caps.supports_inline_assembly));
+            output.push_str(&format!(
+                "Inline Assembly: {}\n",
+                caps.supports_inline_assembly
+            ));
             output.push_str(&format!("Tail Calls: {}\n", caps.supports_tail_calls));
             output.push_str(&format!("Computed Goto: {}\n", caps.supports_computed_goto));
             output.push_str(&format!("Max Stack Size: {:?}\n", caps.max_stack_size));
             output.push_str(&format!("Native Types: {:?}\n", caps.native_types));
-            output.push_str(&format!("Optimization Passes: {:?}\n", caps.optimization_passes));
+            output.push_str(&format!(
+                "Optimization Passes: {:?}\n",
+                caps.optimization_passes
+            ));
             output.push_str("\n");
         }
 

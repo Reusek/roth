@@ -43,6 +43,11 @@ impl Lexer {
     fn next_token(&mut self, start_pos: Position) -> Result<Token, ParseError> {
         let ch = self.current_char();
 
+        // Check for S" string literal pattern (S followed by ")
+        if (ch == 'S' || ch == 's') && self.peek_char() == Some('"') {
+            return self.read_s_quote_literal(start_pos);
+        }
+
         match ch {
             '(' => self.read_comment(start_pos),
             '"' => self.read_string_literal(start_pos),
@@ -62,13 +67,75 @@ impl Lexer {
                     raw: ";".to_string(),
                 })
             }
-            _ if ch.is_ascii_digit()
-                || (ch == '-' && self.peek_char().map_or(false, |c| c.is_ascii_digit())) =>
-            {
-                self.read_number(start_pos)
+            _ => {
+                // Read the full whitespace-delimited token first
+                self.read_token(start_pos)
             }
-            _ => self.read_word(start_pos),
         }
+    }
+
+    fn read_token(&mut self, start_pos: Position) -> Result<Token, ParseError> {
+        let mut token_str = String::new();
+
+        while self.position < self.input.len() {
+            let ch = self.current_char();
+            if ch.is_whitespace() || ch == '(' || ch == ')' || ch == '"' {
+                break;
+            }
+            token_str.push(ch);
+            self.advance();
+        }
+
+        if token_str.is_empty() {
+            return Err(ParseError {
+                message: "Unexpected character".to_string(),
+                position: start_pos,
+            });
+        }
+
+        // Check if the token is a valid number
+        if let Ok(num) = token_str.parse::<i32>() {
+            return Ok(Token {
+                token_type: TokenType::Number(num),
+                position: start_pos,
+                raw: token_str,
+            });
+        }
+
+        // Otherwise treat as a word
+        Ok(Token {
+            token_type: TokenType::Word(token_str.clone().to_uppercase()),
+            position: start_pos,
+            raw: token_str,
+        })
+    }
+
+    fn read_s_quote_literal(&mut self, start_pos: Position) -> Result<Token, ParseError> {
+        self.advance(); // skip 'S'
+        self.advance(); // skip '"'
+
+        // Skip optional space after S"
+        if self.position < self.input.len() && self.current_char() == ' ' {
+            self.advance();
+        }
+
+        // Read string until closing "
+        let mut string = String::new();
+        while self.position < self.input.len() {
+            let ch = self.current_char();
+            if ch == '"' {
+                self.advance();
+                break;
+            }
+            string.push(ch);
+            self.advance();
+        }
+
+        Ok(Token {
+            token_type: TokenType::StringLiteral(string.clone()),
+            position: start_pos,
+            raw: format!("S\" {}\"", string),
+        })
     }
 
     fn read_comment(&mut self, start_pos: Position) -> Result<Token, ParseError> {
@@ -126,58 +193,6 @@ impl Lexer {
             token_type: TokenType::StringLiteral(string.clone()),
             position: start_pos,
             raw: format!("\"{}\"", string),
-        })
-    }
-
-    fn read_number(&mut self, start_pos: Position) -> Result<Token, ParseError> {
-        let mut number_str = String::new();
-
-        if self.current_char() == '-' {
-            number_str.push('-');
-            self.advance();
-        }
-
-        while self.position < self.input.len() && self.current_char().is_ascii_digit() {
-            number_str.push(self.current_char());
-            self.advance();
-        }
-
-        match number_str.parse::<i32>() {
-            Ok(num) => Ok(Token {
-                token_type: TokenType::Number(num),
-                position: start_pos,
-                raw: number_str,
-            }),
-            Err(_) => Err(ParseError {
-                message: format!("Invalid number: {}", number_str),
-                position: start_pos,
-            }),
-        }
-    }
-
-    fn read_word(&mut self, start_pos: Position) -> Result<Token, ParseError> {
-        let mut word = String::new();
-
-        while self.position < self.input.len() {
-            let ch = self.current_char();
-            if ch.is_whitespace() || ch == '(' || ch == ')' || ch == '"' {
-                break;
-            }
-            word.push(ch);
-            self.advance();
-        }
-
-        if word.is_empty() {
-            return Err(ParseError {
-                message: "Unexpected character".to_string(),
-                position: start_pos,
-            });
-        }
-
-        Ok(Token {
-            token_type: TokenType::Word(word.clone().to_uppercase()),
-            position: start_pos,
-            raw: word,
         })
     }
 

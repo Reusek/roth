@@ -1,0 +1,10 @@
+[package]
+name = "roth-runtime"
+version = "0.1.0"
+edition = "2024"
+description = "Runtime library for the Roth Forth REPL"
+
+[lib]
+name = "roth_runtime"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib"]

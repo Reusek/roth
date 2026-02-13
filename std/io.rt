@@ -4,8 +4,8 @@
 ( Character output - now using compiler-level SPACE and BL )
 : TAB 9 EMIT ;
 
-( Multiple spaces )
-: SPACES 0 ?DO SPACE LOOP ;
+( Multiple spaces - Note: SPACES is already a builtin )
+( : SPACES 0 ?DO SPACE LOOP ; )
 
 ( String output helpers )
 : PRINT-STRING ( addr count -- ) TYPE ;

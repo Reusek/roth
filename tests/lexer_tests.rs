@@ -108,8 +108,13 @@ fn test_whitespace_only() {
 #[test]
 fn test_invalid_number() {
     let mut lexer = Lexer::new("999999999999999999999".to_string());
-    let result = lexer.tokenize();
-    assert!(result.is_err());
+    // Numbers that don't fit into i32 are treated as words.
+    let tokens = lexer.tokenize().unwrap();
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(
+        tokens[0].token_type,
+        TokenType::Word("999999999999999999999".to_string())
+    );
 }
 
 #[test]

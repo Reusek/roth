@@ -28,7 +28,9 @@ fn test_analyze_numbers_only() {
 fn test_analyze_simple_definition() {
     assert!(analyze_input(": SQUARE DUP * ;").is_ok());
     assert!(analyze_input(": ADD2 2 + ;").is_ok());
-    assert!(analyze_input(": NEGATE -1 * ;").is_ok());
+    // NEGATE is a builtin word in Roth and cannot be redefined.
+    // Use a different name for a user-defined negation helper.
+    assert!(analyze_input(": NEG1 -1 * ;").is_ok());
 }
 
 #[test]
@@ -64,11 +66,8 @@ fn test_analyze_recursive_definition() {
     let input = r#"
         : COUNTDOWN DUP . 1 - DUP 0 > IF COUNTDOWN THEN DROP ;
     "#;
-    // Note: This should pass analysis even though IF/THEN aren't defined as builtins
-    // because the analyzer only checks for word existence, not control flow
-    let result = analyze_input(input);
-    // This will fail because IF and THEN are not in builtin_words
-    assert!(result.is_err());
+    // Recursive definitions are allowed: the word name is registered before the body is analyzed.
+    assert!(analyze_input(input).is_ok());
 }
 
 #[test]

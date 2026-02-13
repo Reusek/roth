@@ -1,6 +1,6 @@
+use roth_derive::StackEffect;
 use std::collections::HashMap;
 use std::fmt;
-use roth_derive::StackEffect;
 
 /// Intermediate Representation for Forth operations
 /// This IR is stack-based but more explicit about operations and data flow
@@ -26,114 +26,114 @@ pub struct StackEffect {
 
 #[derive(Debug, Clone, PartialEq, StackEffect)]
 pub enum IRInstruction {
-        // Stack operations
-        #[stack_effect(consumes = 0, produces = 1)]
-        Push(IRValue),
-        #[stack_effect(consumes = 1, produces = 0)]
-        Pop,
-        #[stack_effect(consumes = 1, produces = 2)]
-        Dup,
-        #[stack_effect(consumes = 1, produces = 0)]
-        Drop,
-        #[stack_effect(consumes = 2, produces = 2)]
-        Swap,
-        #[stack_effect(consumes = 2, produces = 2)]
-        Over,
-        #[stack_effect(consumes = 3, produces = 3)]
-        Rot, // ( a b c -- b c a )
+    // Stack operations
+    #[stack_effect(consumes = 0, produces = 1)]
+    Push(IRValue),
+    #[stack_effect(consumes = 1, produces = 0)]
+    Pop,
+    #[stack_effect(consumes = 1, produces = 2)]
+    Dup,
+    #[stack_effect(consumes = 1, produces = 0)]
+    Drop,
+    #[stack_effect(consumes = 2, produces = 2)]
+    Swap,
+    #[stack_effect(consumes = 2, produces = 2)]
+    Over,
+    #[stack_effect(consumes = 3, produces = 3)]
+    Rot, // ( a b c -- b c a )
 
-        // Arithmetic operations
-        #[stack_effect(consumes = 2, produces = 1)]
-        Add,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Sub,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Mul,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Div,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Mod,
-        #[stack_effect(consumes = 1, produces = 1)]
-        Neg,
+    // Arithmetic operations
+    #[stack_effect(consumes = 2, produces = 1)]
+    Add,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Sub,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Mul,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Div,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Mod,
+    #[stack_effect(consumes = 1, produces = 1)]
+    Neg,
 
-        // Comparison operations
-        #[stack_effect(consumes = 2, produces = 1)]
-        Equal,
-        #[stack_effect(consumes = 2, produces = 1)]
-        NotEqual,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Less,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Greater,
-        #[stack_effect(consumes = 2, produces = 1)]
-        LessEqual,
-        #[stack_effect(consumes = 2, produces = 1)]
-        GreaterEqual,
+    // Comparison operations
+    #[stack_effect(consumes = 2, produces = 1)]
+    Equal,
+    #[stack_effect(consumes = 2, produces = 1)]
+    NotEqual,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Less,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Greater,
+    #[stack_effect(consumes = 2, produces = 1)]
+    LessEqual,
+    #[stack_effect(consumes = 2, produces = 1)]
+    GreaterEqual,
 
-        // Logical operations
-        #[stack_effect(consumes = 2, produces = 1)]
-        And,
-        #[stack_effect(consumes = 2, produces = 1)]
-        Or,
-        #[stack_effect(consumes = 1, produces = 1)]
-        Not,
+    // Logical operations
+    #[stack_effect(consumes = 2, produces = 1)]
+    And,
+    #[stack_effect(consumes = 2, produces = 1)]
+    Or,
+    #[stack_effect(consumes = 1, produces = 1)]
+    Not,
 
-        // Memory operations
-        #[stack_effect(consumes = 0, produces = 1)]
-        Load(IRValue),  // Load from address
-        #[stack_effect(consumes = 1, produces = 0)]
-        Store(IRValue), // Store to address
+    // Memory operations
+    #[stack_effect(consumes = 0, produces = 1)]
+    Load(IRValue), // Load from address
+    #[stack_effect(consumes = 1, produces = 0)]
+    Store(IRValue), // Store to address
 
-        // Control flow
-        Jump(IRLabel),
-        #[stack_effect(consumes = 1, produces = 0)]
-        JumpIf(IRLabel),    // Jump if top of stack is true
-        #[stack_effect(consumes = 1, produces = 0)]
-        JumpIfNot(IRLabel), // Jump if top of stack is false
-        Call(String),       // Call function
-        Return,
+    // Control flow
+    Jump(IRLabel),
+    #[stack_effect(consumes = 1, produces = 0)]
+    JumpIf(IRLabel), // Jump if top of stack is true
+    #[stack_effect(consumes = 1, produces = 0)]
+    JumpIfNot(IRLabel), // Jump if top of stack is false
+    Call(String), // Call function
+    Return,
 
-        // Loop control
-        #[stack_effect(consumes = 2, produces = 0)]
-        DoLoop(IRLabel, IRLabel), // ?DO: (limit start -- ) jump to end_label if start >= limit, otherwise continue to loop_label
-        Loop(IRLabel),            // LOOP: increment index, jump to loop_label if index < limit
-        #[stack_effect(consumes = 0, produces = 1)]
-        PushLoopIndex,            // I: push current loop index
-        #[stack_effect(consumes = 0, produces = 1)]
-        PushLoopLimit,            // push current loop limit
+    // Loop control
+    #[stack_effect(consumes = 2, produces = 0)]
+    DoLoop(IRLabel, IRLabel), // ?DO: (limit start -- ) jump to end_label if start >= limit, otherwise continue to loop_label
+    Loop(IRLabel), // LOOP: increment index, jump to loop_label if index < limit
+    #[stack_effect(consumes = 0, produces = 1)]
+    PushLoopIndex, // I: push current loop index
+    #[stack_effect(consumes = 0, produces = 1)]
+    PushLoopLimit, // push current loop limit
 
-        // I/O operations
-        #[stack_effect(consumes = 1, produces = 0)]
-        Print,
-        PrintStack,
-        #[stack_effect(consumes = 1, produces = 0)]
-        PrintChar,
-        #[stack_effect(consumes = 2, produces = 0)]
-        PrintString,
-        #[stack_effect(consumes = 0, produces = 1)]
-        ReadChar,
+    // I/O operations
+    #[stack_effect(consumes = 1, produces = 0)]
+    Print,
+    PrintStack,
+    #[stack_effect(consumes = 1, produces = 0)]
+    PrintChar,
+    #[stack_effect(consumes = 2, produces = 0)]
+    PrintString,
+    #[stack_effect(consumes = 0, produces = 1)]
+    ReadChar,
 
-        // Labels and metadata
-        Label(IRLabel),
-        Comment(String),
+    // Labels and metadata
+    Label(IRLabel),
+    Comment(String),
 
-        // Advanced operations for optimization
-        #[stack_effect(consumes = 0, produces = 1)]
-        LoadConst(i32),                           // Optimized constant loading
-        #[stack_effect(consumes = 0, produces = 1)]
-        BinaryOp(BinaryOpKind, IRValue, IRValue), // Optimized binary operations
-        #[stack_effect(consumes = 0, produces = 1)]
-        UnaryOp(UnaryOpKind, IRValue),            // Optimized unary operations
+    // Advanced operations for optimization
+    #[stack_effect(consumes = 0, produces = 1)]
+    LoadConst(i32), // Optimized constant loading
+    #[stack_effect(consumes = 0, produces = 1)]
+    BinaryOp(BinaryOpKind, IRValue, IRValue), // Optimized binary operations
+    #[stack_effect(consumes = 0, produces = 1)]
+    UnaryOp(UnaryOpKind, IRValue), // Optimized unary operations
 
-        // Stack manipulation with known depths
-        #[stack_effect(consumes = 0, produces = 1)]
-        StackGet(usize),          // Get item at stack position (0 = top)
-        StackSet(usize, IRValue), // Set item at stack position
-        StackAlloc(usize),        // Allocate stack space
-        StackFree(usize),         // Free stack space
+    // Stack manipulation with known depths
+    #[stack_effect(consumes = 0, produces = 1)]
+    StackGet(usize), // Get item at stack position (0 = top)
+    StackSet(usize, IRValue), // Set item at stack position
+    StackAlloc(usize),        // Allocate stack space
+    StackFree(usize),         // Free stack space
 
-        // No-op for optimization passes
-        Nop,
+    // No-op for optimization passes
+    Nop,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -373,8 +373,6 @@ impl IRBuilder {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

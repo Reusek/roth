@@ -1,4 +1,4 @@
-use crate::codegen::framework::{TargetLanguage, CommentStyle, CodegenContext};
+use crate::codegen::framework::{CodegenContext, CommentStyle, TargetLanguage};
 
 pub struct RustLanguage;
 
@@ -30,11 +30,11 @@ impl TargetLanguage for RustLanguage {
     fn emit_header(&self, ctx: &CodegenContext) -> String {
         let mut header = String::new();
         header.push_str("// Generated from optimized IR\n");
-        
+
         for dep in &ctx.dependencies {
             header.push_str(&format!("use {};\n", dep));
         }
-        
+
         if !ctx.dependencies.is_empty() {
             header.push('\n');
         }
@@ -93,7 +93,7 @@ impl TargetLanguage for CLanguage {
     fn emit_header(&self, ctx: &CodegenContext) -> String {
         let mut header = String::new();
         header.push_str("/* Generated from optimized IR */\n");
-        
+
         for req in self.runtime_requirements() {
             header.push_str(&format!("#include <{}>\n", req));
         }
@@ -119,7 +119,9 @@ impl TargetLanguage for CLanguage {
         header.push_str("} ForthVM;\n\n");
 
         if ctx.emit_debug_info {
-            header.push_str("#define DEBUG_PRINT(fmt, ...) printf(\"[DEBUG] \" fmt \"\\n\", ##__VA_ARGS__)\n");
+            header.push_str(
+                "#define DEBUG_PRINT(fmt, ...) printf(\"[DEBUG] \" fmt \"\\n\", ##__VA_ARGS__)\n",
+            );
         } else {
             header.push_str("#define DEBUG_PRINT(fmt, ...) do {} while(0)\n");
         }
@@ -133,14 +135,18 @@ impl TargetLanguage for CLanguage {
         header.push_str("void push(ForthVM* vm, int value) {\n");
         header.push_str("    if (vm->stack.top < STACK_SIZE) {\n");
         header.push_str("        vm->stack.data[vm->stack.top++] = value;\n");
-        header.push_str("        DEBUG_PRINT(\"Push: %d (stack depth: %d)\", value, vm->stack.top);\n");
+        header.push_str(
+            "        DEBUG_PRINT(\"Push: %d (stack depth: %d)\", value, vm->stack.top);\n",
+        );
         header.push_str("    }\n");
         header.push_str("}\n\n");
 
         header.push_str("int pop(ForthVM* vm) {\n");
         header.push_str("    if (vm->stack.top > 0) {\n");
         header.push_str("        int value = vm->stack.data[--vm->stack.top];\n");
-        header.push_str("        DEBUG_PRINT(\"Pop: %d (stack depth: %d)\", value, vm->stack.top);\n");
+        header.push_str(
+            "        DEBUG_PRINT(\"Pop: %d (stack depth: %d)\", value, vm->stack.top);\n",
+        );
         header.push_str("        return value;\n");
         header.push_str("    }\n");
         header.push_str("    return 0;\n");
@@ -178,7 +184,10 @@ impl TargetLanguage for LLVMLanguage {
             .unwrap()
             .to_str()
             .unwrap();
-        format!("llc {} -o {}.s && gcc {}.s -o .build/{}", filename, base_name, base_name, base_name)
+        format!(
+            "llc {} -o {}.s && gcc {}.s -o .build/{}",
+            filename, base_name, base_name, base_name
+        )
     }
 
     fn runtime_requirements(&self) -> Vec<String> {
@@ -190,10 +199,10 @@ impl TargetLanguage for LLVMLanguage {
         header.push_str("; Generated from optimized IR\n");
         header.push_str("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n");
         header.push_str("target triple = \"x86_64-unknown-linux-gnu\"\n\n");
-        
+
         header.push_str("@stack = global [1000 x i32] zeroinitializer\n");
         header.push_str("@stack_ptr = global i32 0\n\n");
-        
+
         header
     }
 

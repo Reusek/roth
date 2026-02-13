@@ -1,14 +1,20 @@
 use crate::ir::{IRBuilder, IRFunction, IRInstruction, IRLabel, IRProgram, IRValue, StackEffect};
 use crate::types::AstNode;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Lowers AST to IR
 pub struct IRLowering {
     builder: IRBuilder,
     word_definitions: HashMap<String, Vec<AstNode>>,
+    /// Words known to exist externally (from previous REPL sessions).
+    /// These generate Call instructions but don't create IR functions.
+    external_words: HashSet<String>,
     loop_stack: Vec<(IRLabel, IRLabel)>, // (loop_start_label, loop_end_label)
     conditional_stack: Vec<(Option<IRLabel>, IRLabel)>, // (else_label, endif_label)
-    in_definition: bool, // Track if we're inside a colon definition (compile mode)
+    in_definition: bool,                 // Track if we're inside a colon definition (compile mode)
+    current_definition_name: Option<String>, // Track current definition name for RECURSE
+    variables: HashMap<String, i32>,     // Map variable names to addresses
+    next_variable_address: i32,
 }
 
 impl IRLowering {
@@ -16,9 +22,32 @@ impl IRLowering {
         Self {
             builder: IRBuilder::new("main"),
             word_definitions: HashMap::new(),
+            external_words: HashSet::new(),
             loop_stack: Vec::new(),
             conditional_stack: Vec::new(),
             in_definition: false,
+            current_definition_name: None,
+            variables: HashMap::new(),
+            next_variable_address: 0,
+        }
+    }
+
+    /// Register a known user-defined word from a previous REPL session.
+    /// This allows the IR lowering to generate Call instructions for these words,
+    /// but does NOT create IR functions for them (they exist externally).
+    pub fn add_known_word(&mut self, name: impl Into<String>) {
+        self.external_words.insert(name.into());
+    }
+
+    /// Register a known variable.
+    /// This allows the IR lowering to handle variables defined in previous
+    /// REPL sessions.
+    pub fn add_known_variable(&mut self, name: impl Into<String>) {
+        let name = name.into();
+        if !self.variables.contains_key(&name) {
+            let addr = self.next_variable_address;
+            self.next_variable_address += 1;
+            self.variables.insert(name, addr);
         }
     }
 
@@ -61,16 +90,27 @@ impl IRLowering {
                 self.lower_word(name);
             }
             AstNode::StringLiteral(s, _) => {
-                self.builder.emit_comment(&format!("String literal: \"{}\"", s));
+                self.builder
+                    .emit_comment(&format!("String literal: \"{}\"", s));
                 // Push each character of the string onto the stack
                 for ch in s.chars() {
-                    self.builder.emit(IRInstruction::Push(IRValue::Constant(ch as i32)));
+                    self.builder
+                        .emit(IRInstruction::Push(IRValue::Constant(ch as i32)));
                 }
                 // Push string length
-                self.builder.emit(IRInstruction::Push(IRValue::Constant(s.len() as i32)));
+                self.builder
+                    .emit(IRInstruction::Push(IRValue::Constant(s.len() as i32)));
             }
             AstNode::Definition { .. } => {
                 // Definitions are handled in the Program case
+            }
+            AstNode::VariableDeclaration { name, .. } => {
+                // Allocate a new variable address
+                let addr = self.next_variable_address;
+                self.next_variable_address += 1;
+                self.variables.insert(name.clone(), addr);
+                self.builder
+                    .emit_comment(&format!("VARIABLE {} allocated at address {}", name, addr));
             }
         }
     }
@@ -80,9 +120,11 @@ impl IRLowering {
         self.builder.start_function(name);
         self.builder.emit_comment(&format!("Definition: {}", name));
 
-        // Set compile mode flag
+        // Set compile mode flag and track current definition name for RECURSE
         let was_in_definition = self.in_definition;
+        let prev_definition_name = self.current_definition_name.take();
         self.in_definition = true;
+        self.current_definition_name = Some(name.to_string());
 
         for node in body {
             self.lower_node(node);
@@ -92,6 +134,7 @@ impl IRLowering {
 
         // Restore previous mode and switch back to main function
         self.in_definition = was_in_definition;
+        self.current_definition_name = prev_definition_name;
         self.builder.start_function("main");
     }
 
@@ -264,10 +307,11 @@ impl IRLowering {
                 self.builder.emit_comment("IF conditional");
                 let else_label = self.builder.create_label("else");
                 let endif_label = self.builder.create_label("endif");
-                
+
                 // Jump to else/endif if top of stack is false (0)
-                self.builder.emit(IRInstruction::JumpIfNot(else_label.clone()));
-                
+                self.builder
+                    .emit(IRInstruction::JumpIfNot(else_label.clone()));
+
                 // Push conditional info onto stack
                 self.conditional_stack.push((Some(else_label), endif_label));
             }
@@ -301,23 +345,72 @@ impl IRLowering {
             // Additional useful words
             "TYPE" => {
                 self.builder.emit_comment("TYPE - print string");
-                // Expects: addr count -- 
+                // Expects: addr count --
                 // For now, just print characters from stack
                 self.builder.emit(IRInstruction::PrintString);
             }
             "SPACE" => {
                 self.builder.emit_comment("SPACE - print a space");
-                self.builder.emit(IRInstruction::Push(IRValue::Constant(32))); // ASCII space
+                self.builder
+                    .emit(IRInstruction::Push(IRValue::Constant(32))); // ASCII space
                 self.builder.emit(IRInstruction::PrintChar);
             }
             "BL" => {
                 self.builder.emit_comment("BL - push space character");
-                self.builder.emit(IRInstruction::Push(IRValue::Constant(32))); // ASCII space
+                self.builder
+                    .emit(IRInstruction::Push(IRValue::Constant(32))); // ASCII space
             }
 
-            // User-defined words
+            // RECURSE - call the current definition recursively
+            "RECURSE" => {
+                if let Some(ref def_name) = self.current_definition_name {
+                    self.builder
+                        .emit_comment(&format!("RECURSE - call {} recursively", def_name));
+                    self.builder.emit(IRInstruction::Call(def_name.clone()));
+                } else {
+                    self.builder
+                        .emit_comment("ERROR: RECURSE outside of definition");
+                    self.builder.emit(IRInstruction::Nop);
+                }
+            }
+
+            // 1- (decrement by 1)
+            "1-" => {
+                self.builder.emit_comment("Decrement by 1");
+                self.builder.emit(IRInstruction::Push(IRValue::Constant(1)));
+                self.builder.emit(IRInstruction::Sub);
+            }
+
+            // 1+ (increment by 1)
+            "1+" => {
+                self.builder.emit_comment("Increment by 1");
+                self.builder.emit(IRInstruction::Push(IRValue::Constant(1)));
+                self.builder.emit(IRInstruction::Add);
+            }
+
+            // @ (fetch from memory)
+            "@" => {
+                self.builder.emit_comment("@ - fetch from memory");
+                self.builder.emit(IRInstruction::Load(IRValue::StackTop));
+            }
+
+            // ! (store to memory)
+            "!" => {
+                self.builder.emit_comment("! - store to memory");
+                self.builder.emit(IRInstruction::Store(IRValue::StackTop));
+            }
+
+            // User-defined words and variables
             _ => {
-                if self.word_definitions.contains_key(name) {
+                // Check if it's a variable - push its address
+                if let Some(&addr) = self.variables.get(name) {
+                    self.builder
+                        .emit_comment(&format!("Push address of variable {}", name));
+                    self.builder
+                        .emit(IRInstruction::Push(IRValue::Constant(addr)));
+                } else if self.word_definitions.contains_key(name)
+                    || self.external_words.contains(name)
+                {
                     self.builder
                         .emit_comment(&format!("Call user-defined word: {}", name));
                     self.builder.emit(IRInstruction::Call(name.to_string()));
@@ -501,11 +594,9 @@ mod tests {
             .filter(|instr| !matches!(instr, IRInstruction::Comment(_)))
             .collect();
 
-        assert!(
-            main_instructions
-                .iter()
-                .any(|instr| matches!(instr, IRInstruction::Call(name) if name == "DOUBLE"))
-        );
+        assert!(main_instructions
+            .iter()
+            .any(|instr| matches!(instr, IRInstruction::Call(name) if name == "DOUBLE")));
     }
 
     #[test]

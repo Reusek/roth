@@ -32,6 +32,10 @@ pub enum AstNode {
         body: Vec<AstNode>,
         position: Position,
     },
+    VariableDeclaration {
+        name: String,
+        position: Position,
+    },
     Program(Vec<AstNode>),
 }
 

@@ -1,5 +1,7 @@
-use crate::codegen::framework::{IRTranslator, CodegenContext, CodegenResult, CodegenError};
-use crate::ir::{IRProgram, IRFunction, IRInstruction, IRValue, BinaryOpKind, UnaryOpKind, IRLabel};
+use crate::codegen::framework::{CodegenContext, CodegenError, CodegenResult, IRTranslator};
+use crate::ir::{
+    BinaryOpKind, IRFunction, IRInstruction, IRLabel, IRProgram, IRValue, UnaryOpKind,
+};
 
 pub struct RustTranslator {
     loop_counter: usize,
@@ -7,9 +9,7 @@ pub struct RustTranslator {
 
 impl RustTranslator {
     pub fn new() -> Self {
-        Self {
-            loop_counter: 0,
-        }
+        Self { loop_counter: 0 }
     }
 
     fn translate_value(&self, value: &IRValue) -> String {
@@ -17,7 +17,10 @@ impl RustTranslator {
             IRValue::Constant(n) => n.to_string(),
             IRValue::StackTop => "self.stack.last().copied().unwrap_or(0)".to_string(),
             IRValue::StackPos(pos) => {
-                format!("self.stack.get(self.stack.len().saturating_sub({} + 1)).copied().unwrap_or(0)", pos)
+                format!(
+                    "self.stack.get(self.stack.len().saturating_sub({} + 1)).copied().unwrap_or(0)",
+                    pos
+                )
             }
             IRValue::Variable(name) => format!("/* variable {} */", name),
             IRValue::Temporary(id) => format!("temp_{}", id),
@@ -51,20 +54,20 @@ impl RustTranslator {
 }
 
 impl IRTranslator for RustTranslator {
-    fn translate_instruction(&mut self, instr: &IRInstruction, ctx: &mut CodegenContext) -> CodegenResult {
+    fn translate_instruction(
+        &mut self,
+        instr: &IRInstruction,
+        ctx: &mut CodegenContext,
+    ) -> CodegenResult {
         let code = match instr {
             IRInstruction::Push(value) => {
                 format!("self.stack.push({});", self.translate_value(value))
             }
-            IRInstruction::Pop => {
-                "self.stack.pop();".to_string()
-            }
+            IRInstruction::Pop => "self.stack.pop();".to_string(),
             IRInstruction::Dup => {
                 "if let Some(&top) = self.stack.last() { self.stack.push(top); }".to_string()
             }
-            IRInstruction::Drop => {
-                "self.stack.pop();".to_string()
-            }
+            IRInstruction::Drop => "self.stack.pop();".to_string(),
             IRInstruction::Swap => {
                 let mut code = String::new();
                 code.push_str("if self.stack.len() >= 2 {\n");
@@ -130,17 +133,21 @@ impl IRTranslator for RustTranslator {
             IRInstruction::Print => {
                 "if let Some(val) = self.stack.pop() { println!(\"{}\", val); }".to_string()
             }
-            IRInstruction::PrintStack => {
-                "println!(\"{:?}\", self.stack);".to_string()
-            }
+            IRInstruction::PrintStack => "println!(\"{:?}\", self.stack);".to_string(),
             IRInstruction::Jump(label) => {
                 format!("// goto {}", label)
             }
             IRInstruction::JumpIf(label) => {
-                format!("if self.stack.pop().unwrap_or(0) != 0 {{ /* goto {} */ }}", label)
+                format!(
+                    "if self.stack.pop().unwrap_or(0) != 0 {{ /* goto {} */ }}",
+                    label
+                )
             }
             IRInstruction::JumpIfNot(label) => {
-                format!("if self.stack.pop().unwrap_or(0) == 0 {{ /* goto {} */ }}", label)
+                format!(
+                    "if self.stack.pop().unwrap_or(0) == 0 {{ /* goto {} */ }}",
+                    label
+                )
             }
             IRInstruction::Label(label) => {
                 format!("// {}: ", label)
@@ -155,7 +162,10 @@ impl IRTranslator for RustTranslator {
                 let left_val = self.translate_value(left);
                 let right_val = self.translate_value(right);
                 let op_str = self.translate_binary_op(op);
-                format!("self.stack.push(({}) {} ({}));", left_val, op_str, right_val)
+                format!(
+                    "self.stack.push(({}) {} ({}));",
+                    left_val, op_str, right_val
+                )
             }
             IRInstruction::UnaryOp(op, operand) => {
                 let operand_val = self.translate_value(operand);
@@ -170,16 +180,26 @@ impl IRTranslator for RustTranslator {
                 code.push_str("    let limit = self.stack.pop().unwrap();\n");
                 code.push_str("    let start = self.stack.pop().unwrap();\n");
                 code.push_str("    if start < limit {\n");
-                code.push_str(&format!("        for loop_idx_{} in start..limit {{\n", loop_id));
-                code.push_str(&format!("            self.loop_stack.push((loop_idx_{}, limit));\n", loop_id));
-                code.push_str(&format!("            // loop body for {} to {}\n", loop_label, end_label));
+                code.push_str(&format!(
+                    "        for loop_idx_{} in start..limit {{\n",
+                    loop_id
+                ));
+                code.push_str(&format!(
+                    "            self.loop_stack.push((loop_idx_{}, limit));\n",
+                    loop_id
+                ));
+                code.push_str(&format!(
+                    "            // loop body for {} to {}\n",
+                    loop_label, end_label
+                ));
                 code
             }
             IRInstruction::Loop(label) => {
                 "        }\n        self.loop_stack.pop();\n    }\n}".to_string()
             }
             IRInstruction::PushLoopIndex => {
-                "if let Some(&(idx, _)) = self.loop_stack.last() { self.stack.push(idx); }".to_string()
+                "if let Some(&(idx, _)) = self.loop_stack.last() { self.stack.push(idx); }"
+                    .to_string()
             }
             _ => {
                 format!("// TODO: implement {:?}", instr)
@@ -191,7 +211,7 @@ impl IRTranslator for RustTranslator {
 
     fn translate_function(&mut self, func: &IRFunction, ctx: &mut CodegenContext) -> CodegenResult {
         let mut code = String::new();
-        
+
         if func.name == "main" {
             code.push_str("    pub fn execute(&mut self) {\n");
         } else {
@@ -211,7 +231,11 @@ impl IRTranslator for RustTranslator {
         Ok(code)
     }
 
-    fn translate_program(&mut self, program: &IRProgram, ctx: &mut CodegenContext) -> CodegenResult {
+    fn translate_program(
+        &mut self,
+        program: &IRProgram,
+        ctx: &mut CodegenContext,
+    ) -> CodegenResult {
         let mut code = String::new();
 
         // Translate all functions
@@ -235,9 +259,7 @@ pub struct CTranslator {
 
 impl CTranslator {
     pub fn new() -> Self {
-        Self {
-            loop_counter: 0,
-        }
+        Self { loop_counter: 0 }
     }
 
     fn translate_value(&self, value: &IRValue) -> String {
@@ -272,14 +294,16 @@ impl CTranslator {
 }
 
 impl IRTranslator for CTranslator {
-    fn translate_instruction(&mut self, instr: &IRInstruction, ctx: &mut CodegenContext) -> CodegenResult {
+    fn translate_instruction(
+        &mut self,
+        instr: &IRInstruction,
+        ctx: &mut CodegenContext,
+    ) -> CodegenResult {
         let code = match instr {
             IRInstruction::Push(value) => {
                 format!("push(vm, {});", self.translate_value(value))
             }
-            IRInstruction::Pop => {
-                "pop(vm);".to_string()
-            }
+            IRInstruction::Pop => "pop(vm);".to_string(),
             IRInstruction::Add => {
                 let mut code = String::new();
                 code.push_str("if (vm->stack.top >= 2) {\n");
@@ -347,7 +371,7 @@ impl IRTranslator for CTranslator {
 
     fn translate_function(&mut self, func: &IRFunction, ctx: &mut CodegenContext) -> CodegenResult {
         let mut code = String::new();
-        
+
         if func.name == "main" {
             code.push_str("void forth_main(ForthVM* vm) {\n");
         } else {
@@ -367,7 +391,11 @@ impl IRTranslator for CTranslator {
         Ok(code)
     }
 
-    fn translate_program(&mut self, program: &IRProgram, ctx: &mut CodegenContext) -> CodegenResult {
+    fn translate_program(
+        &mut self,
+        program: &IRProgram,
+        ctx: &mut CodegenContext,
+    ) -> CodegenResult {
         let mut code = String::new();
 
         // Translate all functions

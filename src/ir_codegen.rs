@@ -30,6 +30,7 @@ impl IRRustGenerator {
         output.push_str("    stack: Vec<i32>,\n");
         output.push_str("    words: HashMap<String, Vec<String>>,\n");
         output.push_str("    loop_stack: Vec<(i32, i32)>, // (index, limit) pairs\n");
+        output.push_str("    memory: HashMap<i32, i32>, // Memory for variables\n");
         output.push_str("}\n\n");
 
         output.push_str("impl OptimizedForth {\n");
@@ -43,6 +44,7 @@ impl IRRustGenerator {
         output.push_str(&format!("{}stack: Vec::new(),\n", self.emit_indent()));
         output.push_str(&format!("{}words: HashMap::new(),\n", self.emit_indent()));
         output.push_str(&format!("{}loop_stack: Vec::new(),\n", self.emit_indent()));
+        output.push_str(&format!("{}memory: HashMap::new(),\n", self.emit_indent()));
         self.indent_level -= 1;
         output.push_str(&format!("{}}}\n", self.emit_indent()));
         self.indent_level -= 1;
@@ -116,11 +118,135 @@ impl IRRustGenerator {
     }
 
     fn generate_function_body(&mut self, function: &IRFunction) -> String {
+        // Check if this function has control flow (jumps/labels) but NOT loops
+        // Loops use a different code generation pattern that doesn't work with state machine
+        let has_loops = function
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IRInstruction::DoLoop(_, _) | IRInstruction::Loop(_)));
+
+        let has_control_flow = function.instructions.iter().any(|instr| {
+            matches!(
+                instr,
+                IRInstruction::Jump(_)
+                    | IRInstruction::JumpIf(_)
+                    | IRInstruction::JumpIfNot(_)
+                    | IRInstruction::Label(_)
+            )
+        });
+
+        if has_control_flow && !has_loops {
+            self.generate_function_body_with_control_flow(function)
+        } else {
+            let mut output = String::new();
+            for instruction in &function.instructions {
+                output.push_str(&self.generate_instruction(instruction));
+            }
+            output
+        }
+    }
+
+    fn generate_function_body_with_control_flow(&mut self, function: &IRFunction) -> String {
         let mut output = String::new();
 
-        for instruction in &function.instructions {
-            output.push_str(&self.generate_instruction(instruction));
+        // First pass: collect label positions (map label to PC)
+        let mut label_to_pc: HashMap<String, usize> = HashMap::new();
+        for (pc, instruction) in function.instructions.iter().enumerate() {
+            if let IRInstruction::Label(label) = instruction {
+                label_to_pc.insert(format!("{}_{}", label.name, label.id), pc);
+            }
         }
+
+        // Generate state machine code
+        output.push_str(&format!("{}let mut __pc: usize = 0;\n", self.emit_indent()));
+        output.push_str(&format!("{}loop {{\n", self.emit_indent()));
+        self.indent_level += 1;
+        output.push_str(&format!("{}match __pc {{\n", self.emit_indent()));
+        self.indent_level += 1;
+
+        for (pc, instruction) in function.instructions.iter().enumerate() {
+            output.push_str(&format!("{}{} => {{\n", self.emit_indent(), pc));
+            self.indent_level += 1;
+
+            match instruction {
+                IRInstruction::Label(_) => {
+                    // Label is just a marker, move to next instruction
+                    output.push_str(&format!("{}__pc = {};\n", self.emit_indent(), pc + 1));
+                }
+                IRInstruction::Jump(label) => {
+                    let label_key = format!("{}_{}", label.name, label.id);
+                    if let Some(&target_pc) = label_to_pc.get(&label_key) {
+                        output.push_str(&format!("{}__pc = {};\n", self.emit_indent(), target_pc));
+                    } else {
+                        output.push_str(&format!(
+                            "{}// ERROR: label {} not found\n",
+                            self.emit_indent(),
+                            label_key
+                        ));
+                        output.push_str(&format!("{}__pc = {};\n", self.emit_indent(), pc + 1));
+                    }
+                }
+                IRInstruction::JumpIf(label) => {
+                    let label_key = format!("{}_{}", label.name, label.id);
+                    output.push_str(&format!(
+                        "{}let __cond = self.stack.pop().unwrap();\n",
+                        self.emit_indent()
+                    ));
+                    if let Some(&target_pc) = label_to_pc.get(&label_key) {
+                        output.push_str(&format!(
+                            "{}if __cond != 0 {{ __pc = {}; }} else {{ __pc = {}; }}\n",
+                            self.emit_indent(),
+                            target_pc,
+                            pc + 1
+                        ));
+                    } else {
+                        output.push_str(&format!("{}__pc = {};\n", self.emit_indent(), pc + 1));
+                    }
+                }
+                IRInstruction::JumpIfNot(label) => {
+                    let label_key = format!("{}_{}", label.name, label.id);
+                    output.push_str(&format!(
+                        "{}let __cond = self.stack.pop().unwrap();\n",
+                        self.emit_indent()
+                    ));
+                    if let Some(&target_pc) = label_to_pc.get(&label_key) {
+                        output.push_str(&format!(
+                            "{}if __cond == 0 {{ __pc = {}; }} else {{ __pc = {}; }}\n",
+                            self.emit_indent(),
+                            target_pc,
+                            pc + 1
+                        ));
+                    } else {
+                        output.push_str(&format!("{}__pc = {};\n", self.emit_indent(), pc + 1));
+                    }
+                }
+                IRInstruction::Return => {
+                    output.push_str(&format!("{}return Ok(());\n", self.emit_indent()));
+                }
+                _ => {
+                    // Regular instruction
+                    output.push_str(&self.generate_instruction(instruction));
+                    output.push_str(&format!("{}__pc = {};\n", self.emit_indent(), pc + 1));
+                }
+            }
+
+            self.indent_level -= 1;
+            output.push_str(&format!("{}}}\n", self.emit_indent()));
+        }
+
+        // Add exit case - this PC is reached after the last instruction
+        let exit_pc = function.instructions.len();
+        output.push_str(&format!(
+            "{}{} => return Ok(()),\n",
+            self.emit_indent(),
+            exit_pc
+        ));
+        output.push_str(&format!("{}_ => return Ok(()),\n", self.emit_indent()));
+
+        self.indent_level -= 1;
+        output.push_str(&format!("{}}}\n", self.emit_indent()));
+        self.indent_level -= 1;
+        output.push_str(&format!("{}}}\n", self.emit_indent()));
 
         output
     }
@@ -266,7 +392,7 @@ impl IRRustGenerator {
             }
             IRInstruction::PrintStack => {
                 format!(
-                    "{}println!(\"<{{}}> {{:?}}\", self.stack.len(), self.stack);\n",
+                    "{}{{ print!(\"<{{}}> \", self.stack.len()); for v in &self.stack {{ print!(\"{{}} \", v); }} }}\n",
                     self.emit_indent()
                 )
             }
@@ -278,7 +404,7 @@ impl IRRustGenerator {
             }
             IRInstruction::PrintString => {
                 format!(
-                    "{}// PrintString: print characters from stack\n{}{{ let count = self.stack.pop().unwrap(); for _ in 0..count {{ print!(\"{{}}\", char::from(self.stack.pop().unwrap() as u8)); }} }}\n",
+                    "{}// PrintString: print characters from stack\n{}{{ let count = self.stack.pop().unwrap(); let mut chars: Vec<char> = Vec::new(); for _ in 0..count {{ chars.push(char::from(self.stack.pop().unwrap() as u8)); }} for c in chars.iter().rev() {{ print!(\"{{}}\", c); }} }}\n",
                     self.emit_indent(),
                     self.emit_indent()
                 )
@@ -399,9 +525,15 @@ impl IRRustGenerator {
                     self.emit_indent()
                 )
             }
-            IRInstruction::Load(_) | IRInstruction::Store(_) => {
+            IRInstruction::Load(_) => {
                 format!(
-                    "{}// Memory operations not implemented in this generator\n",
+                    "{}{{ let addr = self.stack.pop().unwrap(); let val = *self.memory.get(&addr).unwrap_or(&0); self.stack.push(val); }}\n",
+                    self.emit_indent()
+                )
+            }
+            IRInstruction::Store(_) => {
+                format!(
+                    "{}{{ let addr = self.stack.pop().unwrap(); let val = self.stack.pop().unwrap(); self.memory.insert(addr, val); }}\n",
                     self.emit_indent()
                 )
             }

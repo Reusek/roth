@@ -2,10 +2,10 @@
 ( Function definition end )
 
 : TRIPLE DUP DUP + + ;
-: NEGATE 0 SWAP - ;
-: ABS DUP 0 < IF NEGATE THEN ;
+: MY-NEGATE 0 SWAP - ;
+: MY-ABS DUP 0 < IF MY-NEGATE THEN ;
 
 3 TRIPLE .
-5 NEGATE .
--7 ABS .
+5 MY-NEGATE .
+-7 MY-ABS .
 CR

@@ -78,6 +78,12 @@ impl Parser {
             TokenType::Word(w) => {
                 let pos = token.position.clone();
                 self.position += 1;
+
+                // Handle VARIABLE declaration
+                if w == "VARIABLE" {
+                    return self.parse_variable_declaration(pos);
+                }
+
                 Ok(AstNode::Word(w.clone(), pos))
             }
             TokenType::StringLiteral(s) => {
@@ -91,6 +97,43 @@ impl Parser {
                 position: token.position.clone(),
             }),
         }
+    }
+
+    fn parse_variable_declaration(
+        &mut self,
+        start_pos: crate::types::Position,
+    ) -> Result<AstNode, ParseError> {
+        // Skip any comments
+        while self.position < self.tokens.len() {
+            if let TokenType::Comment(_) = &self.tokens[self.position].token_type {
+                self.position += 1;
+            } else {
+                break;
+            }
+        }
+
+        if self.position >= self.tokens.len() {
+            return Err(ParseError {
+                message: "Expected variable name after VARIABLE".to_string(),
+                position: start_pos,
+            });
+        }
+
+        let name = match &self.tokens[self.position].token_type {
+            TokenType::Word(w) => w.clone(),
+            _ => {
+                return Err(ParseError {
+                    message: "Expected variable name after VARIABLE".to_string(),
+                    position: self.tokens[self.position].position.clone(),
+                });
+            }
+        };
+        self.position += 1;
+
+        Ok(AstNode::VariableDeclaration {
+            name,
+            position: start_pos,
+        })
     }
 
     fn parse_definition(&mut self) -> Result<AstNode, ParseError> {

@@ -1,4 +1,4 @@
-use crate::ir::{IRProgram, IRFunction, IRInstruction, IRValue};
+use crate::ir::{IRFunction, IRInstruction, IRProgram, IRValue};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -30,9 +30,9 @@ pub enum OptLevel {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommentStyle {
-    DoubleSlash,  // //
-    Hash,         // #
-    CStyle,       // /* */
+    DoubleSlash, // //
+    Hash,        // #
+    CStyle,      // /* */
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -117,7 +117,10 @@ impl CodegenContext {
     }
 
     pub fn add_to_section(&mut self, section: SectionType, content: String) {
-        self.sections.entry(section).or_insert_with(Vec::new).push(content);
+        self.sections
+            .entry(section)
+            .or_insert_with(Vec::new)
+            .push(content);
     }
 }
 
@@ -129,7 +132,9 @@ pub trait Backend {
 
 pub trait CodeEmitter {
     fn emit_line(&mut self, line: &str);
-    fn emit_block<F>(&mut self, header: &str, body: F) where F: FnOnce(&mut Self);
+    fn emit_block<F>(&mut self, header: &str, body: F)
+    where
+        F: FnOnce(&mut Self);
     fn emit_function(&mut self, name: &str, params: &[&str], body: &str);
     fn emit_comment(&mut self, text: &str);
     fn push_indent(&mut self);
@@ -148,9 +153,14 @@ pub trait TargetLanguage {
 }
 
 pub trait IRTranslator {
-    fn translate_instruction(&mut self, instr: &IRInstruction, ctx: &mut CodegenContext) -> CodegenResult;
+    fn translate_instruction(
+        &mut self,
+        instr: &IRInstruction,
+        ctx: &mut CodegenContext,
+    ) -> CodegenResult;
     fn translate_function(&mut self, func: &IRFunction, ctx: &mut CodegenContext) -> CodegenResult;
-    fn translate_program(&mut self, program: &IRProgram, ctx: &mut CodegenContext) -> CodegenResult;
+    fn translate_program(&mut self, program: &IRProgram, ctx: &mut CodegenContext)
+        -> CodegenResult;
 }
 
 pub struct TemplateArgs {
