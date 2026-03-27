@@ -1,10 +1,10 @@
 \babel@toc {czech}{}\relax 
 \contentsline {section}{\numberline {1}Úvod}{10}{section.1}%
 \contentsline {subsection}{\numberline {1.1}Motivace}{10}{subsection.1.1}%
-\contentsline {paragraph}{\numberline {1.1.0.1}Vzdělávací hodnota zásobníkových jazyků.}{10}{paragraph.1.1.0.1}%
-\contentsline {paragraph}{\numberline {1.1.0.2}Praktické využití kompilátoru.}{10}{paragraph.1.1.0.2}%
+\contentsline {paragraph}{\numberline {1.1.0.1}Zásobníkové jazyky jako model pro překladač.}{10}{paragraph.1.1.0.1}%
+\contentsline {paragraph}{\numberline {1.1.0.2}Prostor pro experimenty s~architekturou kompilátoru.}{10}{paragraph.1.1.0.2}%
 \contentsline {paragraph}{\numberline {1.1.0.3}Volba jazyka Rust pro implementaci.}{10}{paragraph.1.1.0.3}%
-\contentsline {subsection}{\numberline {1.2}Cíle práce}{11}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.2}Cíle práce}{10}{subsection.1.2}%
 \contentsline {subsection}{\numberline {1.3}Struktura dokumentu}{11}{subsection.1.3}%
 \contentsline {section}{\numberline {2}Teoretický základ}{12}{section.2}%
 \contentsline {subsection}{\numberline {2.1}Jazyk Forth}{12}{subsection.2.1}%
@@ -140,3 +140,28 @@
 \contentsline {section}{\numberline {C}Gramatika jazyka}{45}{appendix.C}%
 \contentsline {subsection}{\numberline {C.1}Lexikální pravidla}{45}{subsection.C.1}%
 \contentsline {subsection}{\numberline {C.2}Syntaktická pravidla (EBNF)}{46}{subsection.C.2}%
+\contentsline {section}{Literatura}{47}{section*.8}%
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 
+\babel@toc {english}{}\relax 
+\babel@toc {czech}{}\relax 

@@ -1,0 +1,37 @@
+\subsection{Syntaktická analýza}
+\label{sec:parser}
+
+Parser (\texttt{src/parser.rs}) je implementován jako jednoduchý
+rekurzivně-sestupný analyzátor nad vektorem tokenů. Vzhledem
+k~tomu, že zásobníkový jazyk má lineární zápis (program je sekvence slov
+a~literálů), je výsledný abstraktní syntaktický strom (AST) záměrně mělký.
+
+Kořenem AST je uzel \texttt{Program}, který obsahuje seznam příkazů. Jedinou
+hierarchickou konstrukcí jsou definice slov uzavřené mezi \texttt{:} a~\texttt{;},
+které jsou reprezentovány uzlem \texttt{Definition} s~vlastním tělem.
+
+Základní uzly AST jsou definovány v~\texttt{src/types.rs}.
+
+\begin{lstlisting}[language=Rust, caption={Základní uzly AST}]
+pub enum AstNode {
+    Number(i32, Position),
+    Word(String, Position),
+    StringLiteral(String, Position),
+    Definition { name: String, body: Vec<AstNode>, position: Position },
+    VariableDeclaration { name: String, position: Position },
+    Program(Vec<AstNode>),
+}
+\end{lstlisting}
+
+Parser v~celém programu ignoruje tokeny typu \texttt{Comment}. Tím se snižuje
+komplexita syntaktické analýzy bez ztráty informace o~pozicích chyb, protože
+pozice je nesena i~ostatními tokeny.
+
+Definice slova je parsována následovně: po \texttt{:} musí následovat jméno
+slova, poté parser postupně načítá uzly těla až do \texttt{;}. Vnořené definice
+jsou zakázány a~jsou vyhodnoceny jako syntaktická chyba.
+
+Parser zároveň implementuje speciální pravidlo pro konstrukci \texttt{VARIABLE}.
+Pokud se v~toku tokenů objeví slovo \texttt{VARIABLE}, parser očekává následující
+identifikátor, který uloží do uzlu \texttt{VariableDeclaration}. Vlastní práce
+s~proměnnými je řešena až v~nižších fázích (sémantika a~IR).

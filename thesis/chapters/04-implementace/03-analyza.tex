@@ -1,0 +1,26 @@
+\subsection{Sémantická analýza}
+\label{sec:analyzer}
+
+Sémantická analýza (\texttt{src/analyzer.rs}) ověřuje, že program používá pouze
+existující slova a~že uživatelské definice neporušují pravidla jazyka.
+V~kompilátoru \\Roth{} je analýza založena na udržování tří tabulek:
+\texttt{builtin\_words}, \texttt{defined\_words} a~\texttt{defined\_variables}.
+
+Při inicializaci analyzátoru je tabulka vestavěných slov naplněna seznamem
+primitivních operací (aritmetika, práce se zásobníkem, I/O, řízení toku,
+práce s~pamětí). Vestavěná slova jsou považována za součást definice jazyka a~nelze
+je redefinovat.
+
+Analýza prochází AST rekurzivně:
+\begin{itemize}
+	\item při uzlu \texttt{Definition} ověří, že jméno není vestavěné, následně
+	      přidá slovo mezi definovaná ještě \emph{před} analýzou těla;
+	      tím je umožněna rekurze pomocí \texttt{RECURSE},
+	\item při uzlu \texttt{Word} ověří, že se jedná o~vestavěné slovo, uživatelsky
+	      definované slovo, nebo proměnnou,
+	\item při \texttt{VariableDeclaration} registruje proměnnou v tabulce.
+\end{itemize}
+
+V~režimu REPL je tato fáze rozšířena o~kontext předchozích vstupů: před voláním
+\texttt{analyze} jsou do analyzátoru doplněny již definované slova a~proměnné,
+aby bylo možné na ně navazovat (viz sekce~\ref{sec:repl}).

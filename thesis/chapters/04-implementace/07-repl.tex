@@ -1,0 +1,29 @@
+\subsection{REPL s JIT kompilací}
+\label{sec:repl}
+
+REPL je implementován v~\texttt{src/repl/} a~realizuje tzv. \emph{JIT-like}
+přístup: každý vstup uživatele je přeložen do Rust kódu, zkompilován do
+sdílené knihovny (\texttt{cdylib}) a~načten za běhu programu.
+
+Vstupní řetězec prochází stejnými fázemi jako kompilace souboru:
+lexing, parsing, sémantická analýza, IR lowering a~optimalizace. Následně se
+použije specializovaný generátor \texttt{ReplCodegen} (\texttt{src/repl/codegen.rs}),
+který vytvoří kód exportující funkci \texttt{\_\_repl\_entry}. Ta přijímá
+\texttt{RuntimeContext} z~knihovny \texttt{roth-runtime} a~vykoná instrukce nad
+perzistentním zásobníkem a~pamětí.
+
+Kompilace a~dynamické načítání jsou zapouzdřeny v~\texttt{LibraryLoader}
+(\texttt{src/repl/loader.rs}). Loader zapisuje vygenerovaný Rust do dočasného
+adresáře, spustí \texttt{rustc --crate-type=cdylib} a~výslednou knihovnu načte
+pomocí knihovny \texttt{libloading}. REPL si uchovává všechny načtené knihovny
+v~paměti, aby nedošlo k~uvolnění symbolů.
+
+Perzistentní stav mezi příkazy je rozdělen na:
+\begin{itemize}
+	\item \textbf{runtime kontext} (\texttt{RuntimeContext}) --- zásobník,
+	      paměť proměnných a~registry slov,
+	\item \textbf{kompilační kontext} (\texttt{CompilerContext}) --- slovník již
+	      definovaných slov v~IR a~množinu deklarovaných proměnných. Tyto
+	      informace umožňují sémantické ověření a~IR lowering s~ohledem na
+	      historii REPL.
+\end{itemize}

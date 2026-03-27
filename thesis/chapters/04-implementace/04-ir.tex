@@ -1,0 +1,39 @@
+\subsection{Generování mezikódu}
+\label{sec:ir}
+
+Mezikód (IR) je generován v~modulu \texttt{src/ir\_lowering.rs} transformací
+AST na strukturu \texttt{IRProgram}. Implementace používá pomocnou strukturu
+\texttt{IRBuilder} (\texttt{src/ir.rs}), která umožňuje postupně emitovat
+instrukce do právě budované funkce.
+
+Lowering je realizován ve třech krocích, které odpovídají přirozené struktuře
+\Forth{}-like programu:
+\begin{enumerate}
+	\item nejprve se sesbírají všechny definice slov do mapy \texttt{word\_definitions},
+	\item následně se pro každé slovo vytvoří samostatná IR funkce,
+	\item nakonec je přeložena hlavní část programu (kód mimo definice) do funkce \texttt{main}.
+\end{enumerate}
+
+Číselné literály jsou překládány na instrukci \texttt{Push(Constant)}.
+Řetězcové literály jsou v~současné implementaci reprezentovány jako sekvence
+znaků uložených na zásobník (ASCII kódy) následovaná délkou řetězce; to
+odpovídá očekávanému stack efektu slova \texttt{TYPE}.
+
+\paragraph{Proměnné.}
+Při zpracování uzlu \texttt{VariableDeclaration} je proměnné přidělena celočíselná
+adresa z~rostoucího čítače. Při použití proměnné jako slova (tj. token \texttt{Word}
+odpovídá jménu proměnné) lowering vloží na zásobník její adresu.
+Operace \texttt{@} a~\texttt{!} jsou mapovány na instrukce \texttt{Load} a~\texttt{Store}.
+
+\paragraph{Řídicí struktury.}
+Základní struktury \texttt{IF/ELSE/THEN} a~\texttt{DO/LOOP} jsou překládány na
+instrukce se skoky a~návěstími (\texttt{Jump}, \texttt{JumpIfNot}, \texttt{Label})
+pomocí generování unikátních návěstí v~\texttt{IRBuilder}. Pro správné párování
+konstrukcí lowering udržuje pomocné zásobníky (\texttt{loop\_stack} a~\texttt{conditional\_stack}).
+
+\paragraph{Výpočet stack effect.}
+Po vygenerování IR je nad funkcemi spuštěna analýza stack efektu
+(\texttt{StackEffectAnalyzer}), která z~anotací instrukcí (procedurální makro
+\texttt{\#[derive(StackEffect)]} v~\texttt{roth-derive}) vypočítá čistou změnu
+hloubky zásobníku pro každou funkci. Tato informace je později využita
+optimalizátorem i~pro ladicí výpisy.

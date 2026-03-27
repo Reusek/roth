@@ -1,0 +1,21 @@
+\subsection{Standardní knihovna}
+\label{sec:stdlib}
+
+Standardní knihovna je uložena ve složce \texttt{std/} a~je psaná přímo
+v~jazyce \\Roth{}. Hlavní soubor \texttt{std/std.rt} postupně načítá jednotlivé
+moduly pomocí direktivy \texttt{INCLUDE}.
+
+Knihovna je rozdělena do tematických souborů:
+\begin{itemize}
+	\item \texttt{core.rt} --- základní konstanty a~utility,
+	\item \texttt{stack.rt} --- rozšířené zásobníkové operace,
+	\item \texttt{math.rt} --- matematické funkce,
+	\item \texttt{io.rt} --- formátovaný výstup a~I/O pomocné funkce,
+	\item \texttt{control.rt} --- rozšířené řídicí konstrukce,
+	\item \texttt{compiler.rt} --- dokumentace slov implementovaných na úrovni kompilátoru.
+\end{itemize}
+
+V~offline kompilaci je direktiva \texttt{INCLUDE} zpracována ještě před lexikální
+analýzou (funkce \texttt{preprocess\_includes} v~\texttt{src/main.rs}). Preprocesor
+rekurzivně rozbalí všechny inkluze, detekuje cykly a~vloží do výsledného zdroje
+značky ve formě komentářů, aby bylo možné zpětně dohledat původ vloženého kódu.

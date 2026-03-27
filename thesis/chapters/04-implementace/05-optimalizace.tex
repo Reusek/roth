@@ -1,0 +1,44 @@
+\subsection{Optimalizace}
+\label{sec:optimalizace}
+
+\subsubsection{Constant folding}
+
+Průchod constant folding (\texttt{ConstantFoldingPass} v~\texttt{src/ir\_optimizer.rs})
+vyhledává lokální vzory typu \texttt{Push(a) Push(b) op} a~nahrazuje je jednou
+instrukcí \texttt{LoadConst(result)}. Implementace podporuje aritmetické,
+relační i~logické operace. Pro booleovské výsledky je použita konvence \Forth{}:
+\texttt{-1} znamená pravdu a~\texttt{0} nepravdu.
+
+\subsubsection{Dead code elimination}
+
+Eliminace mrtvého kódu (\texttt{DeadCodeEliminationPass}) odstraňuje instrukce,
+které nemají vliv na výsledek výpočtu. V~aktuální implementaci se jedná zejména
+o~\texttt{Nop} a~krátké sekvence jako \texttt{Push \; Drop} nebo \texttt{Dup \; Drop},
+které vznikají jako vedlejší produkt jiných optimalizací.
+
+\subsubsection{Peephole optimalizace}
+
+Peephole optimalizace (\texttt{PeepholeOptimizationPass}) pracuje nad
+malými okny instrukcí (typicky délky 2--3). Cílem je nahradit časté
+sekvence efektivnějším ekvivalentem, případně vytvořit příležitost
+pro následné odstranění instrukcí (např. nahrazení dvojice instrukcí
+\texttt{Dup Drop} za \texttt{Nop}, který odstraní DCE).
+
+\subsubsection{Strength reduction}
+
+Strength reduction (\texttt{StrengthReductionPass}) implementuje standardní
+algebraické identity a~zjednodušení, například násobení dvěma na \texttt{Dup Add}
+nebo eliminaci neutrálních prvků (\texttt{+ 0}, \texttt{* 1}).
+
+\subsubsection{Inlining}
+
+Inlining (\texttt{FunctionInliningPass}) nahrazuje instrukci \texttt{Call} tělem
+volané funkce, pokud je funkce dostatečně malá (výchozí limit 20 instrukcí)
+a~neobsahuje skoky ani rekurzivní volání. Průchod je implementován jako
+globální optimalizace nad celým \texttt{IRProgram}, protože potřebuje přístup
+k~mapě všech funkcí.
+
+Optimalizační pipeline (\texttt{IROptimizer}) spouští průchody iterativně, dokud
+nedojde ke stabilizaci, nebo dokud není překročen maximální počet iterací
+(výchozí hodnota 10). Iterativní spouštění je důležité například proto, že
+inlining může vytvořit nové konstantní výrazy vhodné pro constant folding.

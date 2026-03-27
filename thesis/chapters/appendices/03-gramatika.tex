@@ -1,0 +1,49 @@
+\section{Gramatika jazyka}
+\label{sec:gramatika}
+
+Tato sekce popisuje implementovanou syntaxi jazyka \Roth{} ve zjednodušené EBNF.
+Jazyk je tokenizován na základě bílých znaků a několika speciálních znaků
+(\texttt{:}, \texttt{;}, \texttt{(}, \texttt{)}, \texttt{"}).
+
+\subsection{Lexikální pravidla}
+
+\begin{description}
+	\item[Whitespace] mezery, tabulátory a konce řádků oddělují tokeny.
+	\item[Comment] \texttt{(} \emph{libovolné znaky bez \texttt{)}} \texttt{)}. Komentáře jsou ignorovány parserem.
+	\item[Number] dekadický literál \texttt{i32}. Pokud převod selže (např. přetečení), token je brán jako slovo.
+	\item[Word] posloupnost znaků do prvního bílého znaku, \texttt{(}, \texttt{)}, \texttt{"}. Slova jsou case-insensitive (lexer je normalizuje na velká písmena).
+	\item[String] buď \texttt{"..."} (s podporou escape sekvencí \texttt{\\n}, \texttt{\\t}, \texttt{\\r}, \texttt{\\"}, \texttt{\\\\}), nebo \texttt{S" ..."} (bez escape sekvencí; volitelná mezera po \texttt{S"}).
+\end{description}
+
+\subsection{Syntaktická pravidla (EBNF)}
+
+\begin{lstlisting}[language=Forth, caption={EBNF gramatika}]
+program        ::= { statement } ;
+
+statement      ::= number
+                | string
+                | word
+                | definition
+                | variable_decl
+                | comment ;
+
+definition     ::= ':' word { stmt_in_def } ';' ;
+stmt_in_def    ::= number | string | word | variable_decl | comment ;
+                // vnorene definice nejsou dovoleny
+
+variable_decl  ::= 'VARIABLE' word ;
+
+number         ::= [ '-' ] digit { digit } ;
+
+string         ::= '"' { char | escape } '"'
+                | 'S"' [ ' ' ] { char } '"' ;
+
+comment        ::= '(' { char } ')' ;
+
+word           ::= token ;
+\end{lstlisting}
+
+Při kompilaci ze souboru je před lexikální analýzou proveden preprocesing
+direktivy \texttt{INCLUDE}, která rekurzivně vkládá obsah souborů do zdrojového
+textu. Název souboru může být uveden v uvozovkách nebo bez nich a cesta je
+vyhodnocena relativně k aktuálnímu souboru (a případně k pracovnímu adresáři).

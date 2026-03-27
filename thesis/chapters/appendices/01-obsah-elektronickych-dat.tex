@@ -1,0 +1,34 @@
+\section{Obsah elektronických dat}
+\label{sec:ObsahData}
+
+\begin{description}
+	\item[\texttt{thesis/}] \hfill \\
+	      Zdrojové soubory práce v \LaTeX{}u a výsledné PDF (\texttt{kidiplom.pdf}).
+
+	\item[\texttt{src/}] \hfill \\
+	      Zdrojové kódy kompilátoru \Roth{} v jazyce Rust (frontend, IR, optimalizace, codegen).
+
+	\item[\texttt{src/repl/}] \hfill \\
+	      Implementace REPL režimu s JIT-like kompilací.
+
+	\item[\texttt{roth-runtime/}] \hfill \\
+	      Knihovna poskytující běhový kontext (zásobník, paměť) pro REPL.
+
+	\item[\texttt{std/}] \hfill \\
+	      Standardní knihovna jazyka ve formě \Roth{} zdrojových souborů.
+
+	\item[\texttt{tests/}] \hfill \\
+	      Jednotkové a integrační testy kompilátoru.
+
+	\item[\texttt{test\_source/}] \hfill \\
+	      Ukázkové vstupy pro integrační testy (včetně očekávaných výstupů).
+
+	\item[\texttt{README.md}] \hfill \\
+	      Stručný popis projektu.
+
+	\item[\texttt{Cargo.toml}] \hfill \\
+	      Konfigurační soubor projektu pro Rust.
+
+	\item[\texttt{.build/}] \hfill \\
+	      Výstupní adresář generovaného kódu (vytváří se při běhu kompilátoru).
+\end{description}

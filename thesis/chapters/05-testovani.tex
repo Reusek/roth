@@ -1,0 +1,58 @@
+%% ===================================================================
+%% KAPITOLA 5: TESTOVÁNÍ A VYHODNOCENÍ
+%% ===================================================================
+\section{Testování a vyhodnocení}
+\label{sec:testovani}
+
+\subsection{Testovací metodika}
+
+Testování kompilátoru bylo rozděleno do dvou úrovní:
+\begin{itemize}
+	\item \textbf{jednotkové testy} ověřují jednotlivé moduly (lexer, parser,
+	      sémantická analýza, IR, optimalizace a~codegen) na malých izolovaných
+	      případech,
+	\item \textbf{integrační testy} ověřují celý překladový řetězec přes
+	      veřejné CLI rozhraní a~kontrolují, že je vygenerovaný kód vytvořen
+	      a~obsahuje očekávané konstrukce.
+\end{itemize}
+
+Jednotkové testy jsou implementovány ve dvou formách:
+(1) testy přímo v modulech v~\texttt{src/} pomocí \texttt{\#[cfg(test)]} a
+(2) testy v~adresáři \texttt{tests/}, kde jsou jednotlivé části kompilátoru
+testovány přes veřejné API knihovny \texttt{roth}.
+
+Integrační testy (\texttt{tests/integration\_tests.rs}) spouštějí binární
+program přes \texttt{cargo run} a~ověřují vznik výstupu v~adresáři \texttt{.build/}.
+Tím se simuluje běžné použití kompilátoru z~příkazové řádky.
+
+Všechny testy lze spustit příkazem:
+\begin{lstlisting}[language=bash, caption={Spuštění testů}]
+cargo test
+\end{lstlisting}
+
+\subsection{Výsledky testování}
+
+Testovací sada pokrývá základní syntaktické konstrukce jazyka, práci s~datovým
+zásobníkem, překlad uživatelských definic, vybrané řídicí struktury a~optimalizační
+průchody nad IR.
+
+V~adresáři \texttt{tests/} jsou testy rozděleny do tematických souborů:
+\texttt{lexer\_tests.rs}, \texttt{parser\_tests.rs}, \texttt{analyzer\_tests.rs},
+\texttt{ir\_tests.rs}, \texttt{codegen\_tests.rs} a~\texttt{integration\_tests.rs}.
+Tyto testy společně ověřují správnost výstupů jednotlivých fází i~to, že
+generování kódu odpovídá očekávané sémantice.
+
+Při vývoji byly odhaleny a~opraveny zejména chyby související s~hranami
+tokenizace (pozice tokenů přes víceřádkový vstup, escapování řetězců) a~se
+správným zacházením s~kontextem REPL (registrace slov a~proměnných mezi vstupy).
+
+\subsection{Porovnání s existujícími implementacemi}
+
+Cílem práce není nahrazovat zavedené implementace jako Gforth, ale popsat
+a~ověřit architekturu kompilátoru založenou na explicitním mezikódu,
+optimalizačních průchodech a~více backendech.
+
+Ve srovnání s~tradičním \Forth{} je \\Roth{} koncipován především jako
+kompilátorový projekt: jazyková sada je omezena na konstrukce potřebné pro
+demonstraci frontendu, middle-endu i~backendů. Těžiště práce proto neleží
+v~úplné kompatibilitě se standardem \Forth{}, ale v~návrhu překladového řetězce.

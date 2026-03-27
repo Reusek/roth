@@ -1,0 +1,36 @@
+%% ===================================================================
+%% KAPITOLA 6: ZÁVĚR
+%% ===================================================================
+\begin{kiconclusions}
+	Tato práce popsala návrh a~implementaci kompilátoru zásobníkového jazyka
+	inspirovaného jazykem \Forth{}. Výsledná implementace \\Roth{} v~jazyce Rust
+	zahrnuje lexikální a~syntaktickou analýzu, sémantickou kontrolu, převod do
+	mezikódu, optimalizační průchody a~generování cílového kódu.
+
+	Součástí návrhu je zásobníkový mezikód a~sada optimalizačních průchodů
+	(constant folding, inlining, peephole optimalizace, strength reduction
+	a~eliminace mrtvého kódu). Implementace podporuje generování kódu do jazyků
+	Rust a~C a~obsahuje REPL prostředí založené na průběžné kompilaci a dynamickém
+	načítání knihoven.
+
+	Další rozvoj může směřovat k~rozšíření backendů, doplnění dalších instrukcí
+	mezikódu, rozšíření standardní knihovny a~k~systematičtějšímu měření výkonu
+	na větší sadě referenčních programů.
+\end{kiconclusions}
+
+\begin{kiconclusions}[english]
+	This thesis described the design and implementation of a stack-based language
+	inspired by Forth. The resulting Rust implementation of Roth includes lexing,
+	parsing, semantic validation, lowering to an intermediate representation,
+	IR-level optimizations, and target code generation.
+
+	The design uses a dedicated stack-based intermediate representation together
+	with optimization passes such as constant folding, inlining, peephole
+	optimization, strength reduction, and dead code elimination. The implementation
+	supports Rust and C backends and includes a REPL environment based on
+	incremental compilation and dynamic library loading.
+
+	Future work may focus on extending backend coverage, adding more IR
+	instructions, expanding the standard library, and performing more systematic
+	performance measurements on a broader benchmark set.
+\end{kiconclusions}

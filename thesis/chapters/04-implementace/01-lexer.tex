@@ -1,0 +1,45 @@
+\subsection{Lexikální analýza}
+\label{sec:lexer}
+
+Lexikální analyzátor převádí vstupní text na sekvenci tokenů, které jsou
+následně zpracovány parserem. V~kompilátoru \\Roth{} je lexer implementován
+v~modulu \texttt{src/lexer.rs} jako struktura \texttt{Lexer}, která si uchovává:
+(1) celý vstup jako řetězec, (2) aktuální pozici ve vstupu a~(3) informace o~řádku
+a~sloupci pro diagnostiku chyb.
+
+Každý token nese kromě svého typu také původní text (pole \texttt{raw}) a~pozici
+\texttt{Position} (řádek, sloupec a~offset ve vstupu). Tato volba zjednodušuje
+generování chybových hlášení ve všech následujících fázích.
+
+Typy tokenů jsou definovány výčtem \texttt{TokenType} v~\texttt{src/types.rs}.
+Lexer rozpoznává celočíselné literály (\texttt{i32}), identifikátory (slova),
+oddělovače definic (\texttt{:} a~\texttt{;}), komentáře v~závorkách
+\texttt{(\dots)} a~řetězcové literály.
+
+Specifickým prvkem inspirovaným \Forth{} je podpora syntaxe \texttt{S\" ...\"},
+která umožňuje zapisovat řetězec bez explicitního uzavírání do tokenů jednotlivých
+slov. Lexer tento vzor detekuje ještě před obecným rozlišením tokenu.
+
+\begin{lstlisting}[language=Rust, caption={Rozpoznání tokenu v lexeru}, float=htbp]
+fn next_token(&mut self, start_pos: Position) -> Result<Token, ParseError> {
+    let ch = self.current_char();
+    if (ch == 'S' || ch == 's') && self.peek_char() == Some('"') {
+        return self.read_s_quote_literal(start_pos);
+    }
+    match ch {
+        '(' => self.read_comment(start_pos),
+        '"' => self.read_string_literal(start_pos),
+        ':' | ';' => self.read_definition_token(start_pos),
+        _ => self.read_token(start_pos),
+    }
+}
+\end{lstlisting}
+
+Metoda \texttt{read\_token} načte nejdelší podřetězec oddělený bílými znaky
+a~pokusí se jej převést na číslo. Pokud převod selže, token je interpretován jako
+slovo a~normalizován na velká písmena (\texttt{to\_uppercase}). To sjednocuje
+zpracování slov nezávisle na velikosti písmen ve zdrojovém kódu.
+
+Komentáře v~závorkách jsou tokenizovány jako \texttt{TokenType::Comment}.
+Parser i~další fáze je následně mohou ignorovat nebo využít (např. pro zachování
+informativních poznámek v~IR ve formě \texttt{Comment} instrukcí).

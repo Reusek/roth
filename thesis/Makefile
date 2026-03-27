@@ -13,8 +13,8 @@ kidiplom: kidiplom.pdf
 	@$(LATEX) $<
 	@$(LATEX) $<
 	@$(BIBER) $*
-	@$(MAKEGLOSSARIES) $*
-	@$(MAKEINDEX) $*.idx
+	@if [ -s "$*.glo" ] || [ -s "$*.acn" ]; then $(MAKEGLOSSARIES) $*; fi
+	@if [ -f "$*.idx" ]; then $(MAKEINDEX) $*.idx; fi
 	@$(LATEX) $<
 	@$(LATEX) $<
 

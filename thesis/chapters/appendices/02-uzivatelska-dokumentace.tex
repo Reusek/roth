@@ -1,0 +1,91 @@
+\section{Uživatelská dokumentace}
+\label{sec:dokumentace}
+
+Tato příloha popisuje použití kompilátoru \Roth{} z příkazové řádky a základní
+práci v režimu REPL.
+
+\subsection{Požadavky}
+
+Pro sestavení projektu je potřeba nainstalovaný Rust toolchain.
+Pro spuštění některých režimů jsou dále potřeba:
+\begin{itemize}
+	\item \texttt{rustc} v \texttt{PATH} (používá se při \texttt{--run} a v režimu REPL),
+	\item \texttt{gcc} (používá se při \texttt{--run} s backendem pro C).
+\end{itemize}
+
+\subsection{Sestavení a testy}
+
+Projekt lze sestavit a otestovat standardními příkazy:
+\begin{lstlisting}[language=bash, caption={Sestavení a testy}]
+cargo build
+cargo test
+\end{lstlisting}
+
+\subsection{Kompilace souboru}
+
+Kompilace souboru probíhá spuštěním binárky \texttt{roth} se jménem vstupního
+souboru. Výstupní kód je uložen do adresáře \texttt{.build/}.
+
+\begin{lstlisting}[language=bash, caption={Kompilace souboru}]
+cargo run -- path/to/program.fs
+\end{lstlisting}
+
+Volba backendu:
+\begin{lstlisting}[language=bash, caption={Volba backendu}]
+cargo run -- path/to/program.fs --backend rust-ir
+cargo run -- path/to/program.fs --backend c-ir
+\end{lstlisting}
+
+Volitelně lze nastavit jméno výstupního souboru (stále bude umístěn do
+\texttt{.build/}):
+\begin{lstlisting}[language=bash, caption={Vlastní název výstupu}]
+cargo run -- path/to/program.fs -o out.rs
+\end{lstlisting}
+
+\paragraph{Režim \texttt{--run}.}
+Při použití \texttt{--run} kompilátor kromě vygenerování kódu automaticky spustí
+překlad cílového kódu a výsledný program vykoná. Pro Rust backend se používá
+\texttt{rustc -O}, pro C backend \texttt{gcc -O2}.
+\begin{lstlisting}[language=bash, caption={Kompilace a spuštění}]
+cargo run -- path/to/program.fs --backend rust-ir --run
+cargo run -- path/to/program.fs --backend c-ir --run
+\end{lstlisting}
+
+\subsection{Ladění výpisů}
+
+Volba \texttt{--debug} řídí množství ladicích informací:
+\begin{itemize}
+	\item \texttt{0} --- bez výpisů,
+	\item \texttt{1} --- vypíše vygenerovaný cílový kód,
+	\item \texttt{2} --- vypíše tokeny, AST, IR a statistiky optimalizací,
+	\item \texttt{3} --- navíc vypíše barevně zvýrazněný cílový kód (pokud je dostupný highlighter).
+\end{itemize}
+
+Volba \texttt{--no-color} vypne barevné zvýraznění.
+
+\subsection{REPL režim}
+
+REPL se spustí bez argumentu vstupního souboru, nebo pomocí \texttt{-i/--interactive}:
+\begin{lstlisting}[language=bash, caption={Spuštění REPL}]
+cargo run
+cargo run -- -i
+\end{lstlisting}
+
+V REPL lze psát běžné \Roth{} příkazy (např. \texttt{2 3 + .}) a definovat slova
+pomocí \texttt{: NAME ... ;}. REPL navíc obsahuje příkazy začínající dvojtečkou
+bez mezery (např. \texttt{:help}).
+
+\begin{lstlisting}[language=bash, caption={Základní REPL příkazy}]
+:help      (napoveda)
+:stack     (vypis zasobniku)
+:words     (seznam uzivatelskych slov)
+:vars      (seznam promennych)
+:clear     (vypradneni zasobniku)
+:reset     (reset stavu)
+:debug 2   (nastaveni debug urovne)
+:quit      (ukonceni)
+\end{lstlisting}
+
+Konstrukce \texttt{INCLUDE} je podporována pouze při kompilaci ze souboru
+(je implementována jako preprocesor v \texttt{src/main.rs}); v režimu REPL se
+nevyhodnocuje.

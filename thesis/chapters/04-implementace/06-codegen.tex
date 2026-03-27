@@ -1,0 +1,31 @@
+\subsection{Generování cílového kódu}
+\label{sec:codegen}
+
+\subsubsection{Backend pro Rust}
+
+Generování cílového kódu pro Rust je implementováno dvěma cestami.
+První cesta (\texttt{rust-ir}) používá přímočarý generátor
+\texttt{IRRustGenerator} (\texttt{src/ir\_codegen.rs}), který převádí IR do
+samostatného spustitelného programu v~Rust. Vygenerovaný kód obsahuje strukturu
+\texttt{OptimizedForth} s~datovým zásobníkem \texttt{Vec<i32>} a~metodami,
+které implementují jednotlivá uživatelská slova jako vnořené funkce.
+
+Pro instrukce řídicího toku generátor používá jednoduchý stavový automat
+nad čítačem instrukcí (\texttt{\_\_pc}), což umožňuje reprezentovat skoky
+\texttt{Jump}/\texttt{JumpIf}/\texttt{JumpIfNot} i~bez explicitních \texttt{goto}.
+
+Druhá cesta je novější modulární framework (\texttt{src/codegen/*}), který
+odděluje překlad instrukcí (\texttt{IRTranslator}) od emitování kódu
+(\texttt{CodeEmitter}) a~od specifik cílového jazyka (\texttt{TargetLanguage}).
+V~této práci je tento framework využit především pro experimenty a~rozšiřitelnost.
+
+\subsubsection{Backend pro C}
+
+Backend pro jazyk C (\texttt{c-ir}) je implementován generátorem
+\texttt{IRCGenerator} v~\texttt{src/ir\_codegen.rs}. Vygenerovaný kód
+implementuje zásobník jako pole pevné velikosti \texttt{STACK\_SIZE} a~používá
+pomocné funkce \texttt{push}/\texttt{pop}. Tato varianta je vhodná pro jednodušší
+portaci a~snadné spuštění na systémech bez toolchainu pro Rust.
+
+Stejně jako u~Rust backendu je možné použít i~modulární variantu backendu
+(\texttt{c-modular}), která je registrována v~\texttt{codegen/registry.rs}.
